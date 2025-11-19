@@ -152,3 +152,143 @@ document.addEventListener("visibilitychange", () => {
 });
 
 updateSwitchLabel();
+
+// WebSocket 접속 코드
+const SOCKET_URL = "wss://9ad8ivmy7e.execute-api.ap-northeast-2.amazonaws.com/dev/";
+const wsStatus = document.getElementById("ws-status");
+const wsMessages = document.getElementById("ws-messages");
+const wsCounter = document.getElementById("ws-counter");
+
+type WsIndicatorState = "disconnected" | "connecting" | "connected";
+
+function setWsIndicator(state: WsIndicatorState) {
+  if (!wsStatus) return;
+  wsStatus.classList.remove("is-connecting", "is-connected");
+  if (state === "connecting") {
+    wsStatus.classList.add("is-connecting");
+    wsStatus.setAttribute("title", "WebSocket 상태: 연결 중 (지연 연결)");
+  } else if (state === "connected") {
+    wsStatus.classList.add("is-connected");
+    wsStatus.setAttribute("title", "WebSocket 상태: 연결됨");
+  } else {
+    wsStatus.setAttribute("title", "WebSocket 상태: 미연결");
+  }
+}
+
+type WsMessage = { text: string; timestamp: Date };
+const wsMessageQueue: WsMessage[] = [];
+const WS_MESSAGE_LIMIT = 10;
+
+function renderWsMessages() {
+  if (!wsMessages) return;
+  wsMessages.innerHTML = "";
+  if (wsMessageQueue.length === 0) {
+    const emptyEl = document.createElement("div");
+    emptyEl.className = "ws-box__empty";
+    emptyEl.textContent = "아직 받은 메시지가 없습니다.";
+    wsMessages.appendChild(emptyEl);
+  } else {
+    wsMessageQueue.forEach((message) => {
+      const item = document.createElement("div");
+      item.className = "ws-message";
+      const timeEl = document.createElement("span");
+      timeEl.className = "ws-message__time";
+      timeEl.textContent = message.timestamp.toLocaleTimeString("ko-KR", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      const textEl = document.createElement("div");
+      textEl.textContent = message.text;
+      item.appendChild(timeEl);
+      item.appendChild(textEl);
+      wsMessages.appendChild(item);
+    });
+  }
+  if (wsCounter) {
+    wsCounter.textContent = String(wsMessageQueue.length);
+  }
+}
+
+function pushWsMessage(rawMessage: unknown) {
+  const text =
+    typeof rawMessage === "string"
+      ? rawMessage
+      : (() => {
+          try {
+            return JSON.stringify(rawMessage);
+          } catch {
+            return String(rawMessage);
+          }
+        })();
+  wsMessageQueue.unshift({ text, timestamp: new Date() });
+  if (wsMessageQueue.length > WS_MESSAGE_LIMIT) {
+    wsMessageQueue.pop();
+  }
+  renderWsMessages();
+}
+
+function logConnectionId(message: unknown) {
+  if (!message || typeof message !== "object") return;
+  if ("connectionId" in message) {
+    console.info("[WS] connectionId:", (message as { connectionId?: string }).connectionId);
+  }
+}
+
+function initWebSocket() {
+  console.log("[WS] connecting to", SOCKET_URL);
+  setWsIndicator("connecting");
+  const socket = new WebSocket(SOCKET_URL);
+  (window as any).__socket = socket;
+
+  socket.addEventListener("open", () => {
+    console.log("[WS] connected. readyState:", socket.readyState);
+    setWsIndicator("connected");
+    try {
+      socket.send(JSON.stringify({ action: "ping" }));
+    } catch (error) {
+      console.warn("[WS] 초기 메시지 전송 실패:", error);
+    }
+  });
+
+  socket.addEventListener("message", (event) => {
+    console.log("[WS] message:", event.data);
+    try {
+      const parsed = JSON.parse(event.data);
+      logConnectionId(parsed);
+      pushWsMessage(parsed);
+    } catch {
+      pushWsMessage(event.data);
+    }
+  });
+
+  socket.addEventListener("close", (event) => {
+    console.log("[WS] closed", {
+      code: event.code,
+      reason: event.reason || "(no reason)",
+      wasClean: event.wasClean,
+      readyState: socket.readyState,
+    });
+    setWsIndicator("disconnected");
+  });
+
+  socket.addEventListener("error", (error) => {
+    console.error("[WS] error:", error);
+    setWsIndicator("disconnected");
+  });
+
+  setTimeout(() => {
+    console.log("[WS] state after 2s:", socket.readyState);
+  }, 2000);
+  setTimeout(() => {
+    console.log("[WS] state after 5s:", socket.readyState);
+  }, 5000);
+}
+
+setWsIndicator("disconnected");
+renderWsMessages();
+console.log("[WS] 3초 후에 연결을 시도합니다...");
+setTimeout(() => {
+  initWebSocket();
+}, 3000);
