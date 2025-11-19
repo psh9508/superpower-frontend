@@ -288,7 +288,4 @@ function initWebSocket() {
 
 setWsIndicator("disconnected");
 renderWsMessages();
-console.log("[WS] 3초 후에 연결을 시도합니다...");
-setTimeout(() => {
-  initWebSocket();
-}, 3000);
+initWebSocket();
