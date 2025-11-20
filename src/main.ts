@@ -5,6 +5,7 @@ const snapBtn = document.getElementById("snap") as HTMLButtonElement | null;
 const switchBtn = document.getElementById("switch") as HTMLButtonElement | null;
 const saveBtn = document.getElementById("save") as HTMLButtonElement | null;
 const stopBtn = document.getElementById("stop") as HTMLButtonElement | null;
+const apiBtn = document.getElementById("api-call") as HTMLButtonElement | null;
 
 let stream: MediaStream | null = null;
 let hasCapture = false;
@@ -232,7 +233,9 @@ function pushWsMessage(rawMessage: unknown) {
 function logConnectionId(message: unknown) {
   if (!message || typeof message !== "object") return;
   if ("connectionId" in message) {
-    console.info("[WS] connectionId:", (message as { connectionId?: string }).connectionId);
+    const connectionId = (message as { connectionId?: string }).connectionId;
+    console.info("[WS] connectionId:", connectionId);
+    (window as any).__connectionId = connectionId;
   }
 }
 
@@ -285,6 +288,34 @@ function initWebSocket() {
     console.log("[WS] state after 5s:", socket.readyState);
   }, 5000);
 }
+
+async function callImageAPI() {
+  const connectionId = getWebSocketConnectionId();
+  if (!connectionId) {
+    alert('WebSocket connectionId를 찾을 수 없습니다.');
+    return;
+  }
+
+  try {
+    const url = `https://jxvrngbw4b.execute-api.ap-northeast-2.amazonaws.com/Prod/image_send?connectionId=${encodeURIComponent(connectionId)}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    await response.json();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    alert(`API 호출 실패: ${message}`);
+  }
+}
+
+function getWebSocketConnectionId(): string | null {
+  return (window as any).__connectionId || null;
+}
+
+apiBtn?.addEventListener("click", callImageAPI);
 
 setWsIndicator("disconnected");
 renderWsMessages();
