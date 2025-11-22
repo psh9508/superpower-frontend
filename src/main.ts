@@ -5,7 +5,10 @@ const snapBtn = document.getElementById("snap") as HTMLButtonElement | null;
 const switchBtn = document.getElementById("switch") as HTMLButtonElement | null;
 const saveBtn = document.getElementById("save") as HTMLButtonElement | null;
 const stopBtn = document.getElementById("stop") as HTMLButtonElement | null;
-const apiBtn = document.getElementById("api-call") as HTMLButtonElement | null;
+const isLocalMode =
+  ["localhost", "127.0.0.1", "::1"].includes(location.hostname) ||
+  location.protocol === "file:";
+const LOCAL_FALLBACK_IMAGE = "static/다운로드.jpg";
 
 let stream: MediaStream | null = null;
 let hasCapture = false;
@@ -13,7 +16,8 @@ let currentFacing: "environment" | "user" = "environment";
 
 function setButtonState() {
   const hasStream = Boolean(stream);
-  if (snapBtn) snapBtn.disabled = !hasStream;
+  const allowSnap = hasStream || isLocalMode;
+  if (snapBtn) snapBtn.disabled = !allowSnap;
   if (stopBtn) stopBtn.disabled = !hasStream;
   if (switchBtn) switchBtn.disabled = !hasStream;
   if (saveBtn) saveBtn.disabled = !hasCapture;
@@ -57,7 +61,16 @@ async function openCamera(facing: "environment" | "user" = currentFacing) {
   }
 }
 
-function takePhoto() {
+async function takePhoto() {
+  if (isLocalMode) {
+    const ok = await drawLocalFallback();
+    if (ok) {
+      hasCapture = true;
+      setButtonState();
+    }
+    return;
+  }
+
   if (!video || !canvas || !stream) {
     alert("카메라가 아직 준비되지 않았습니다.");
     return;
@@ -103,24 +116,31 @@ function takePhoto() {
   setButtonState();
 }
 
-function saveImage() {
-  if (!canvas) return;
+async function generateImage() {
+  if (!hasCapture) {
+    alert("이미지를 먼저 촬영해주세요.");
+    return;
+  }
 
-  canvas.toBlob(
-    (blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `photo_${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    },
-    "image/jpeg",
-    0.92,
-  );
+  const connectionId = getWebSocketConnectionId();
+  if (!connectionId) {
+    alert('WebSocket connectionId를 찾을 수 없습니다.');
+    return;
+  }
+
+  try {
+    const url = `https://jxvrngbw4b.execute-api.ap-northeast-2.amazonaws.com/Prod/image_send?connectionId=${encodeURIComponent(connectionId)}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    await response.json();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    alert(`API 호출 실패: ${message}`);
+  }
 }
 
 function stopCamera() {
@@ -139,7 +159,7 @@ openBtn?.addEventListener("click", () => {
   void openCamera();
 });
 snapBtn?.addEventListener("click", takePhoto);
-saveBtn?.addEventListener("click", saveImage);
+saveBtn?.addEventListener("click", generateImage);
 stopBtn?.addEventListener("click", stopCamera);
 switchBtn?.addEventListener("click", () => {
   const nextFacing = currentFacing === "environment" ? "user" : "environment";
@@ -289,34 +309,48 @@ function initWebSocket() {
   }, 5000);
 }
 
-async function callImageAPI() {
-  const connectionId = getWebSocketConnectionId();
-  if (!connectionId) {
-    alert('WebSocket connectionId를 찾을 수 없습니다.');
-    return;
-  }
-
-  try {
-    const url = `https://jxvrngbw4b.execute-api.ap-northeast-2.amazonaws.com/Prod/image_send?connectionId=${encodeURIComponent(connectionId)}`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    await response.json();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    alert(`API 호출 실패: ${message}`);
-  }
-}
 
 function getWebSocketConnectionId(): string | null {
   return (window as any).__connectionId || null;
 }
 
-apiBtn?.addEventListener("click", callImageAPI);
+async function drawLocalFallback(): Promise<boolean> {
+  if (!canvas) return false;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return false;
 
+  const img = new Image();
+  img.src = LOCAL_FALLBACK_IMAGE;
+  const loaded = await new Promise<boolean>((resolve) => {
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+  });
+  if (!loaded) {
+    alert("테스트용 이미지를 불러오지 못했습니다.");
+    return false;
+  }
+
+  const targetW = canvas.width;
+  const targetH = canvas.height;
+  const imgAspect = img.width / img.height;
+  const canvasAspect = targetW / targetH;
+  let drawW = targetW;
+  let drawH = targetH;
+  if (imgAspect > canvasAspect) {
+    drawH = targetW / imgAspect;
+  } else if (imgAspect < canvasAspect) {
+    drawW = targetH * imgAspect;
+  }
+  const dx = (targetW - drawW) / 2;
+  const dy = (targetH - drawH) / 2;
+
+  ctx.clearRect(0, 0, targetW, targetH);
+  ctx.drawImage(img, dx, dy, drawW, drawH);
+  return true;
+}
+
+
+setButtonState();
 setWsIndicator("disconnected");
 renderWsMessages();
 initWebSocket();
