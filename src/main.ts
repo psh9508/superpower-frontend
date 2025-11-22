@@ -14,6 +14,9 @@ const waitingImage = document.getElementById("waiting-image") as HTMLImageElemen
 const waitingTimer = document.getElementById("waiting-timer") as HTMLDivElement | null;
 const captureSlot = document.getElementById("capture-slot") as HTMLDivElement | null;
 const waitingClose = document.getElementById("waiting-close") as HTMLButtonElement | null;
+const wsClose = document.getElementById("ws-close") as HTMLButtonElement | null;
+const wsBox = document.getElementById("ws-box") as HTMLElement | null;
+const wsToggle = document.getElementById("ws-toggle") as HTMLButtonElement | null;
 const isLocalMode =
   ["localhost", "127.0.0.1", "::1"].includes(location.hostname) ||
   location.protocol === "file:";
@@ -193,6 +196,12 @@ waitingClose?.addEventListener("click", () => {
   setWaitingStatus("pending");
   clearResultImage();
   showWaitingPanel(false);
+});
+wsToggle?.addEventListener("click", () => {
+  toggleWsBox();
+});
+wsClose?.addEventListener("click", () => {
+  toggleWsBox(false);
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -583,10 +592,27 @@ function resetWaitingCountdown() {
 
 function updateWaitingTimer() {
   if (!waitingTimer) return;
-  waitingTimer.textContent = `최대 대기 시간 ${waitingRemaining}초`;
+  waitingTimer.textContent = `남은 시간 ${waitingRemaining}초 / 최대 ${WAITING_TIMEOUT_SEC}초`;
 }
 
 setButtonState();
 setWsIndicator("disconnected");
 renderWsMessages();
 initWebSocket();
+toggleWsBox(false);
+
+function toggleWsBox(forceShow?: boolean) {
+  if (!wsBox || !wsToggle) return;
+  const willShow =
+    typeof forceShow === "boolean" ? forceShow : wsBox.classList.contains("is-hidden");
+
+  if (willShow) {
+    wsBox.classList.remove("is-hidden");
+    wsToggle.classList.add("is-hidden");
+    wsToggle.setAttribute("aria-expanded", "true");
+  } else {
+    wsBox.classList.add("is-hidden");
+    wsToggle.classList.remove("is-hidden");
+    wsToggle.setAttribute("aria-expanded", "false");
+  }
+}
