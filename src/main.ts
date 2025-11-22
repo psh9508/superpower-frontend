@@ -505,7 +505,7 @@ function setWaitingStatus(status: "pending" | "done" | "failed") {
     waitingImage.style.display = isDone && waitingImage.src ? "block" : "none";
   }
   if (waitingClose) {
-    waitingClose.style.display = isDone ? "inline-flex" : "none";
+    waitingClose.style.display = isDone || isFailed ? "inline-flex" : "none";
   }
   if (waitingTimer) {
     waitingTimer.style.display = status === "pending" ? "block" : "none";
