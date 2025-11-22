@@ -37,7 +37,109 @@
         height: auto;
         border: 1px solid #ddd;
         border-radius: 12px;
-        background: #000;
+        background: linear-gradient(135deg, #f6f8ff 0%, #eef3ff 100%);
+        box-shadow: 0 10px 30px rgba(24, 71, 196, 0.08);
+      }
+      .capture-slot {
+        position: relative;
+        width: min(92vw, 480px);
+        min-height: 200px;
+      }
+      .capture-slot__inner {
+        position: relative;
+      }
+      .waiting-panel {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+      }
+      .waiting-panel.is-active {
+        display: flex;
+      }
+      .waiting-card {
+        width: 100%;
+        border-radius: 14px;
+        background: linear-gradient(145deg, #0d1b2a, #1b2f4f);
+        color: #f5f7ff;
+        padding: 18px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+        display: grid;
+        gap: 10px;
+        text-align: left;
+      }
+      .waiting-card__title {
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.2px;
+      }
+      .waiting-card__desc {
+        font-size: 13px;
+        color: #d6e2ff;
+        line-height: 1.5;
+      }
+      .waiting-card__pulse {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #6ec8ff;
+        box-shadow: 0 0 0 0 rgba(110, 200, 255, 0.6);
+        animation: pulseDot 1.4s ease-in-out infinite;
+      }
+      .waiting-panel.is-done .waiting-card {
+        background: linear-gradient(145deg, #0c2f1f, #0f5a30);
+      }
+      .waiting-panel.is-done .waiting-card__desc {
+        color: #d8ffe7;
+      }
+      .waiting-panel.is-done .waiting-card__pulse {
+        background: #68ffb3;
+        box-shadow: 0 0 0 0 rgba(104, 255, 179, 0.45);
+        animation: none;
+      }
+      .canvas--send {
+        animation: sendOut 0.9s ease forwards;
+        transform-origin: center;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      }
+      .send-fly {
+        position: absolute;
+        pointer-events: none;
+        animation: flyOut 0.8s ease-in forwards;
+        border-radius: 12px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+        z-index: 50;
+      }
+      @keyframes sendOut {
+        0% {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+        50% {
+          opacity: 0.6;
+          transform: scale(0.95) translateY(-10px);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0.85) translateY(-40px);
+        }
+      }
+      @keyframes flyOut {
+        0% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        60% {
+          opacity: 0.8;
+          transform: translate(-6px, -40px) scale(0.93) rotate(-1deg);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(12px, -120px) scale(0.78) rotate(3deg);
+        }
       }
       .controls {
         display: flex;
@@ -140,6 +242,78 @@
         background: #00c853;
         box-shadow: 0 0 6px rgba(0, 200, 83, 0.6);
       }
+      .upload-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(13, 17, 23, 0.35);
+        backdrop-filter: blur(10px);
+        z-index: 100;
+      }
+      .upload-overlay.is-active {
+        display: flex;
+      }
+      .upload-card {
+        padding: 24px 28px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #0d1b2a, #172a46);
+        color: #f5f7ff;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+        display: grid;
+        gap: 12px;
+        min-width: min(320px, 90vw);
+      }
+      .upload-card__title {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .upload-card__spinner {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: 4px solid rgba(255, 255, 255, 0.15);
+        border-top-color: #6ec8ff;
+        animation: spin 1s linear infinite, pulse 1.6s ease-in-out infinite;
+        justify-self: center;
+      }
+      .upload-card__desc {
+        font-size: 14px;
+        color: #d6e2ff;
+        line-height: 1.5;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(110, 200, 255, 0.4);
+        }
+        100% {
+          box-shadow: 0 0 0 22px rgba(110, 200, 255, 0);
+        }
+      }
+      @keyframes pulseDot {
+        0% {
+          transform: scale(0.85);
+          box-shadow: 0 0 0 0 rgba(110, 200, 255, 0.5);
+        }
+        50% {
+          transform: scale(1.05);
+          box-shadow: 0 0 0 10px rgba(110, 200, 255, 0);
+        }
+        100% {
+          transform: scale(0.85);
+          box-shadow: 0 0 0 0 rgba(110, 200, 255, 0);
+        }
+      }
     </style>
   </head>
   <body>
@@ -154,7 +328,20 @@
         <button id="snap" disabled>사진 찍기</button>
         <button id="switch" disabled>전환</button>
       </div>
-      <canvas id="canvas" width="720" height="960"></canvas>
+      <div class="capture-slot">
+        <div class="capture-slot__inner">
+          <canvas id="canvas" width="720" height="960"></canvas>
+          <div id="waiting-panel" class="waiting-panel" aria-live="polite">
+            <div class="waiting-card">
+              <div id="waiting-title" class="waiting-card__title">서버 응답을 기다리는 중</div>
+              <div id="waiting-desc" class="waiting-card__desc">
+                이미지를 전송했습니다. 결과가 도착하면 이곳에 표시됩니다.
+              </div>
+              <div id="waiting-pulse" class="waiting-card__pulse" aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="controls">
         <button id="save">이미지 생성</button>
         <button id="stop" disabled>카메라 종료</button>
@@ -173,6 +360,13 @@
         <div class="ws-box__empty">아직 받은 메시지가 없습니다.</div>
       </div>
     </section>
+    <div id="upload-overlay" class="upload-overlay" aria-live="polite">
+      <div class="upload-card">
+        <div class="upload-card__title">이미지 전송 중</div>
+        <div class="upload-card__spinner" aria-hidden="true"></div>
+        <div class="upload-card__desc">서버 응답을 기다리는 중입니다. 잠시만 기다려주세요.</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

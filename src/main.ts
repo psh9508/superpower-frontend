@@ -5,6 +5,10 @@ const snapBtn = document.getElementById("snap") as HTMLButtonElement | null;
 const switchBtn = document.getElementById("switch") as HTMLButtonElement | null;
 const saveBtn = document.getElementById("save") as HTMLButtonElement | null;
 const stopBtn = document.getElementById("stop") as HTMLButtonElement | null;
+const uploadOverlay = document.getElementById("upload-overlay") as HTMLDivElement | null;
+const waitingPanel = document.getElementById("waiting-panel") as HTMLDivElement | null;
+const waitingTitle = document.getElementById("waiting-title") as HTMLDivElement | null;
+const waitingDesc = document.getElementById("waiting-desc") as HTMLDivElement | null;
 const isLocalMode =
   ["localhost", "127.0.0.1", "::1"].includes(location.hostname) ||
   location.protocol === "file:";
@@ -72,6 +76,7 @@ async function takePhoto() {
     if (ok) {
       hasCapture = true;
       setButtonState();
+      showWaitingPanel(false);
     }
     return;
   }
@@ -102,6 +107,7 @@ async function takePhoto() {
   ctx.restore();
   hasCapture = true;
   setButtonState();
+  showWaitingPanel(false);
 }
 
 async function generateImage() {
@@ -124,14 +130,21 @@ async function generateImage() {
   const fileName = `${connectionId}.${UPLOAD_EXTENSION}`;
 
   try {
+    setWaitingStatus("pending");
+    setUploading(true);
     const presignedUrl = await fetchPresignedUrl(fileName, UPLOAD_TYPE);
     const blob = await canvasToBlob(canvas, UPLOAD_TYPE, UPLOAD_QUALITY);
     await uploadToPresignedUrl(presignedUrl, blob, UPLOAD_TYPE);
-    alert("이미지를 업로드했습니다.");
+    animateSendSuccess();
+    hasCapture = false;
+    setButtonState();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[upload] failed:", error);
     alert(`이미지 업로드 실패: ${message}`);
+  } finally {
+    setUploading(false);
+    showWaitingPanel(!hasCapture);
   }
 }
 
@@ -272,6 +285,7 @@ function initWebSocket() {
     try {
       const parsed = JSON.parse(event.data);
       logConnectionId(parsed);
+      handleWsPayload(parsed);
       pushWsMessage(parsed);
     } catch {
       pushWsMessage(event.data);
@@ -394,6 +408,78 @@ function resizeCanvasForSource(srcW: number, srcH: number): { targetW: number; t
   canvas.width = targetW;
   canvas.height = targetH;
   return { targetW, targetH };
+}
+
+function animateSendSuccess() {
+  if (!canvas) return;
+  createFlyingCopy(canvas);
+  setTimeout(() => {
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }, 600);
+}
+
+function createFlyingCopy(source: HTMLCanvasElement) {
+  const dataUrl = source.toDataURL(UPLOAD_TYPE, UPLOAD_QUALITY);
+  const rect = source.getBoundingClientRect();
+  const img = document.createElement("img");
+  img.src = dataUrl;
+  img.className = "send-fly";
+  img.style.width = `${rect.width}px`;
+  img.style.height = `${rect.height}px`;
+  img.style.left = `${rect.left + window.scrollX}px`;
+  img.style.top = `${rect.top + window.scrollY}px`;
+  document.body.appendChild(img);
+  img.addEventListener("animationend", () => {
+    img.remove();
+  });
+}
+
+function setUploading(isUploading: boolean) {
+  if (!uploadOverlay) return;
+  if (isUploading) {
+    uploadOverlay.classList.add("is-active");
+  } else {
+    uploadOverlay.classList.remove("is-active");
+  }
+}
+
+function showWaitingPanel(show: boolean) {
+  if (!waitingPanel || !canvas) return;
+  if (show) {
+    waitingPanel.classList.add("is-active");
+    canvas.style.visibility = "hidden";
+  } else {
+    waitingPanel.classList.remove("is-active");
+    canvas.style.visibility = "visible";
+  }
+}
+
+function setWaitingStatus(status: "pending" | "done") {
+  if (!waitingPanel) return;
+  const isDone = status === "done";
+  waitingPanel.classList.toggle("is-done", isDone);
+  if (waitingTitle) {
+    waitingTitle.textContent = isDone ? "처리 완료" : "서버 응답을 기다리는 중";
+  }
+  if (waitingDesc) {
+    waitingDesc.textContent = isDone
+      ? "이미지 처리가 완료되었습니다. 새로 촬영해보세요."
+      : "이미지를 전송했습니다. 결과가 도착하면 이곳에 표시됩니다.";
+  }
+}
+
+function handleWsPayload(payload: unknown) {
+  if (!payload || typeof payload !== "object") return;
+  const type = (payload as { type?: string }).type;
+  if (type === "image_complete") {
+    setWaitingStatus("done");
+    setTimeout(() => {
+      showWaitingPanel(false);
+    }, 1200);
+  }
 }
 
 setButtonState();
