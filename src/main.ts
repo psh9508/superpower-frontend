@@ -9,6 +9,10 @@ const isLocalMode =
   ["localhost", "127.0.0.1", "::1"].includes(location.hostname) ||
   location.protocol === "file:";
 const LOCAL_FALLBACK_IMAGE = "static/다운로드.jpg";
+const PRESIGN_ENDPOINT = "https://jxvrngbw4b.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
+const UPLOAD_TYPE = "image/jpeg";
+const UPLOAD_QUALITY = 0.92;
+const UPLOAD_EXTENSION = "jpg";
 
 let stream: MediaStream | null = null;
 let hasCapture = false;
@@ -122,24 +126,28 @@ async function generateImage() {
     return;
   }
 
+  if (!canvas) {
+    alert("캔버스가 준비되지 않았습니다.");
+    return;
+  }
+
   const connectionId = getWebSocketConnectionId();
   if (!connectionId) {
     alert('WebSocket connectionId를 찾을 수 없습니다.');
     return;
   }
 
+  const fileName = `${connectionId}.${UPLOAD_EXTENSION}`;
+
   try {
-    const url = `https://jxvrngbw4b.execute-api.ap-northeast-2.amazonaws.com/Prod/image_send?connectionId=${encodeURIComponent(connectionId)}`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    await response.json();
+    const presignedUrl = await fetchPresignedUrl(fileName, UPLOAD_TYPE);
+    const blob = await canvasToBlob(canvas, UPLOAD_TYPE, UPLOAD_QUALITY);
+    await uploadToPresignedUrl(presignedUrl, blob, UPLOAD_TYPE);
+    alert("이미지를 업로드했습니다.");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    alert(`API 호출 실패: ${message}`);
+    console.error("[upload] failed:", error);
+    alert(`이미지 업로드 실패: ${message}`);
   }
 }
 
@@ -314,6 +322,64 @@ function getWebSocketConnectionId(): string | null {
   return (window as any).__connectionId || null;
 }
 
+async function fetchPresignedUrl(fileName: string, contentType?: string): Promise<string> {
+  const url = new URL(PRESIGN_ENDPOINT);
+  url.searchParams.set("fileName", fileName);
+  url.searchParams.set("key", fileName);
+  if (contentType) {
+    url.searchParams.set("contentType", contentType);
+  }
+
+  const response = await fetch(url.toString());
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    console.error("[presign] failed", response.status, text);
+    throw new Error(`presign 요청 실패 (HTTP ${response.status})`);
+  }
+
+  const data = await response.json();
+  console.log("[presign] request:", url.toString());
+  console.log("[presign] response body:", data);
+  const presignedUrl =
+    data.presigned_url || data.uploadUrl || data.url || data.presignedUrl;
+  if (!presignedUrl || typeof presignedUrl !== "string") {
+    throw new Error("응답에서 presigned URL을 찾을 수 없습니다.");
+  }
+  console.log("[presign] presignedUrl:", presignedUrl);
+  return presignedUrl;
+}
+
+function canvasToBlob(canvasEl: HTMLCanvasElement, type?: string, quality?: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvasEl.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("이미지 Blob 생성에 실패했습니다."));
+          return;
+        }
+        resolve(blob);
+      },
+      type,
+      quality
+    );
+  });
+}
+
+async function uploadToPresignedUrl(presignedUrl: string, blob: Blob, contentType: string) {
+  // presigned URL은 그대로 사용하고, 헤더는 요청 시 서명에 포함된 값과 동일하게 유지
+  const headers: Record<string, string> = { "Content-Type": contentType };
+  const response = await fetch(presignedUrl, {
+    method: "PUT",
+    headers,
+    body: blob,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    console.error("[upload] failed", response.status, text);
+    throw new Error(`S3 업로드 실패 (HTTP ${response.status})`);
+  }
+}
+
 async function drawLocalFallback(): Promise<boolean> {
   if (!canvas) return false;
   const ctx = canvas.getContext("2d");
@@ -348,7 +414,6 @@ async function drawLocalFallback(): Promise<boolean> {
   ctx.drawImage(img, dx, dy, drawW, drawH);
   return true;
 }
-
 
 setButtonState();
 setWsIndicator("disconnected");
