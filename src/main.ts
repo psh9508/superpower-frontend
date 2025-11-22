@@ -13,6 +13,7 @@ const PRESIGN_ENDPOINT = "https://jxvrngbw4b.execute-api.ap-northeast-2.amazonaw
 const UPLOAD_TYPE = "image/jpeg";
 const UPLOAD_QUALITY = 0.92;
 const UPLOAD_EXTENSION = "jpg";
+const MAX_CANVAS_WIDTH = 720;
 
 let stream: MediaStream | null = null;
 let hasCapture = false;
@@ -85,35 +86,18 @@ async function takePhoto() {
     return;
   }
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  const targetW = canvas.width;
-  const targetH = canvas.height;
   const vw = video.videoWidth;
   const vh = video.videoHeight;
-  const vAspect = vw / vh;
-  const cAspect = targetW / targetH;
-
-  let sx = 0;
-  let sy = 0;
-  let sw = vw;
-  let sh = vh;
-
-  if (vAspect > cAspect) {
-    sw = Math.floor(vh * cAspect);
-    sx = Math.floor((vw - sw) / 2);
-  } else if (vAspect < cAspect) {
-    sh = Math.floor(vw / cAspect);
-    sy = Math.floor((vh - sh) / 2);
-  }
+  const { targetW, targetH } = resizeCanvasForSource(vw, vh);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
   ctx.save();
   if (currentFacing === "user") {
     ctx.scale(-1, 1);
-    ctx.drawImage(video, sx, sy, sw, sh, -targetW, 0, targetW, targetH);
+    ctx.drawImage(video, 0, 0, vw, vh, -targetW, 0, targetW, targetH);
   } else {
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
+    ctx.drawImage(video, 0, 0, vw, vh, 0, 0, targetW, targetH);
   }
   ctx.restore();
   hasCapture = true;
@@ -396,23 +380,20 @@ async function drawLocalFallback(): Promise<boolean> {
     return false;
   }
 
-  const targetW = canvas.width;
-  const targetH = canvas.height;
-  const imgAspect = img.width / img.height;
-  const canvasAspect = targetW / targetH;
-  let drawW = targetW;
-  let drawH = targetH;
-  if (imgAspect > canvasAspect) {
-    drawH = targetW / imgAspect;
-  } else if (imgAspect < canvasAspect) {
-    drawW = targetH * imgAspect;
-  }
-  const dx = (targetW - drawW) / 2;
-  const dy = (targetH - drawH) / 2;
-
+  const { targetW, targetH } = resizeCanvasForSource(img.width, img.height);
   ctx.clearRect(0, 0, targetW, targetH);
-  ctx.drawImage(img, dx, dy, drawW, drawH);
+  ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, targetW, targetH);
   return true;
+}
+
+function resizeCanvasForSource(srcW: number, srcH: number): { targetW: number; targetH: number } {
+  if (!canvas) return { targetW: 0, targetH: 0 };
+  const scale = Math.min(1, MAX_CANVAS_WIDTH / srcW);
+  const targetW = Math.max(1, Math.round(srcW * scale));
+  const targetH = Math.max(1, Math.round(srcH * scale));
+  canvas.width = targetW;
+  canvas.height = targetH;
+  return { targetW, targetH };
 }
 
 setButtonState();
