@@ -9,6 +9,7 @@ const uploadOverlay = document.getElementById("upload-overlay") as HTMLDivElemen
 const waitingPanel = document.getElementById("waiting-panel") as HTMLDivElement | null;
 const waitingTitle = document.getElementById("waiting-title") as HTMLDivElement | null;
 const waitingDesc = document.getElementById("waiting-desc") as HTMLDivElement | null;
+const waitingPulse = document.getElementById("waiting-pulse") as HTMLDivElement | null;
 const isLocalMode =
   ["localhost", "127.0.0.1", "::1"].includes(location.hostname) ||
   location.protocol === "file:";
@@ -22,6 +23,7 @@ const MAX_CANVAS_WIDTH = 720;
 let stream: MediaStream | null = null;
 let hasCapture = false;
 let currentFacing: "environment" | "user" = "environment";
+let waitingTimeout: number | null = null;
 
 function setButtonState() {
   const hasStream = Boolean(stream);
@@ -77,6 +79,8 @@ async function takePhoto() {
       hasCapture = true;
       setButtonState();
       showWaitingPanel(false);
+      clearWaitingTimeout();
+      setWaitingStatus("pending");
     }
     return;
   }
@@ -108,6 +112,8 @@ async function takePhoto() {
   hasCapture = true;
   setButtonState();
   showWaitingPanel(false);
+  clearWaitingTimeout();
+  setWaitingStatus("pending");
 }
 
 async function generateImage() {
@@ -132,6 +138,7 @@ async function generateImage() {
   try {
     setWaitingStatus("pending");
     setUploading(true);
+    startWaitingTimeout();
     const presignedUrl = await fetchPresignedUrl(fileName, UPLOAD_TYPE);
     const blob = await canvasToBlob(canvas, UPLOAD_TYPE, UPLOAD_QUALITY);
     await uploadToPresignedUrl(presignedUrl, blob, UPLOAD_TYPE);
@@ -142,6 +149,7 @@ async function generateImage() {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[upload] failed:", error);
     alert(`이미지 업로드 실패: ${message}`);
+    clearWaitingTimeout();
   } finally {
     setUploading(false);
     showWaitingPanel(!hasCapture);
@@ -457,17 +465,28 @@ function showWaitingPanel(show: boolean) {
   }
 }
 
-function setWaitingStatus(status: "pending" | "done") {
+function setWaitingStatus(status: "pending" | "done" | "failed") {
   if (!waitingPanel) return;
   const isDone = status === "done";
+  const isFailed = status === "failed";
   waitingPanel.classList.toggle("is-done", isDone);
+  waitingPanel.classList.toggle("is-failed", isFailed);
+  if (waitingPulse) {
+    waitingPulse.style.animationPlayState = isDone || isFailed ? "paused" : "running";
+  }
   if (waitingTitle) {
-    waitingTitle.textContent = isDone ? "처리 완료" : "서버 응답을 기다리는 중";
+    waitingTitle.textContent = isDone
+      ? "처리 완료"
+      : isFailed
+        ? "처리 실패"
+        : "서버 응답을 기다리는 중";
   }
   if (waitingDesc) {
     waitingDesc.textContent = isDone
       ? "이미지 처리가 완료되었습니다. 새로 촬영해보세요."
-      : "이미지를 전송했습니다. 결과가 도착하면 이곳에 표시됩니다.";
+      : isFailed
+        ? "응답 시간이 초과되었습니다. 다시 시도해주세요."
+        : "이미지를 전송했습니다. 결과가 도착하면 이곳에 표시됩니다.";
   }
 }
 
@@ -475,10 +494,26 @@ function handleWsPayload(payload: unknown) {
   if (!payload || typeof payload !== "object") return;
   const type = (payload as { type?: string }).type;
   if (type === "image_complete") {
+    clearWaitingTimeout();
     setWaitingStatus("done");
     setTimeout(() => {
       showWaitingPanel(false);
     }, 1200);
+  }
+}
+
+function startWaitingTimeout() {
+  clearWaitingTimeout();
+  waitingTimeout = window.setTimeout(() => {
+    setWaitingStatus("failed");
+    showWaitingPanel(true);
+  }, 60_000);
+}
+
+function clearWaitingTimeout() {
+  if (waitingTimeout !== null) {
+    window.clearTimeout(waitingTimeout);
+    waitingTimeout = null;
   }
 }
 
