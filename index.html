@@ -40,27 +40,54 @@
         background: linear-gradient(135deg, #f6f8ff 0%, #eef3ff 100%);
         box-shadow: 0 10px 30px rgba(24, 71, 196, 0.08);
       }
+      .capture-canvas {
+        display: block;
+      }
+      .capture-canvas.is-hidden {
+        display: none;
+      }
       .capture-slot {
         position: relative;
         width: min(92vw, 480px);
-        min-height: 200px;
+        min-height: 260px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(24, 71, 196, 0.08);
+        overflow: hidden;
+      }
+      .capture-slot.is-hidden {
+        display: none;
       }
       .capture-slot__inner {
         position: relative;
+        width: 100%;
+        min-height: 260px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .capture-canvas.is-hidden {
+        visibility: hidden;
+        pointer-events: none;
       }
       .waiting-panel {
-        position: absolute;
+        position: fixed;
         inset: 0;
         display: none;
         align-items: center;
         justify-content: center;
         padding: 12px;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(6px);
+        pointer-events: auto;
+        z-index: 50;
       }
       .waiting-panel.is-active {
         display: flex;
       }
       .waiting-card {
-        width: 100%;
+        width: min(420px, 92vw);
         border-radius: 14px;
         background: linear-gradient(145deg, #0d1b2a, #1b2f4f);
         color: #f5f7ff;
@@ -80,6 +107,27 @@
         color: #d6e2ff;
         line-height: 1.5;
       }
+      .waiting-card__thumb {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.08));
+        overflow: hidden;
+        max-height: 320px;
+      }
+      .waiting-card__thumb img {
+        display: block;
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+        background: #0b1524;
+        max-height: 320px;
+      }
+      .waiting-card__timer {
+        font-size: 13px;
+        color: #c8dcff;
+        font-weight: 600;
+      }
       .waiting-card__pulse {
         display: inline-block;
         width: 14px;
@@ -88,6 +136,22 @@
         background: #6ec8ff;
         box-shadow: 0 0 0 0 rgba(110, 200, 255, 0.6);
         animation: pulseDot 1.4s ease-in-out infinite;
+      }
+      .waiting-card__close {
+        margin-top: 6px;
+        align-self: flex-end;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: #f5f7ff;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.18s ease;
+      }
+      .waiting-card__close:hover {
+        background: rgba(255, 255, 255, 0.16);
+        transform: translateY(-1px);
       }
       .waiting-panel.is-done .waiting-card {
         background: linear-gradient(145deg, #0c2f1f, #0f5a30);
@@ -339,18 +403,9 @@
         <button id="snap" disabled>사진 찍기</button>
         <button id="switch" disabled>전환</button>
       </div>
-      <div class="capture-slot">
+      <div id="capture-slot" class="capture-slot">
         <div class="capture-slot__inner">
-          <canvas id="canvas" width="720" height="960"></canvas>
-          <div id="waiting-panel" class="waiting-panel" aria-live="polite">
-            <div class="waiting-card">
-              <div id="waiting-title" class="waiting-card__title">서버 응답을 기다리는 중</div>
-              <div id="waiting-desc" class="waiting-card__desc">
-                이미지를 전송했습니다. 결과가 도착하면 이곳에 표시됩니다.
-              </div>
-              <div id="waiting-pulse" class="waiting-card__pulse" aria-hidden="true"></div>
-            </div>
-          </div>
+          <canvas id="canvas" class="capture-canvas" width="720" height="960"></canvas>
         </div>
       </div>
       <div class="controls">
@@ -371,6 +426,20 @@
         <div class="ws-box__empty">아직 받은 메시지가 없습니다.</div>
       </div>
     </section>
+    <div id="waiting-panel" class="waiting-panel" aria-live="polite">
+      <div class="waiting-card">
+        <div id="waiting-title" class="waiting-card__title">서버 응답을 기다리는 중</div>
+        <div id="waiting-desc" class="waiting-card__desc">
+          이미지를 전송했습니다. 결과가 도착하면 이곳에 표시됩니다.
+        </div>
+        <div class="waiting-card__thumb" aria-hidden="true">
+          <img id="waiting-image" alt="처리된 이미지 미리보기" />
+        </div>
+        <div id="waiting-timer" class="waiting-card__timer"></div>
+        <div id="waiting-pulse" class="waiting-card__pulse" aria-hidden="true"></div>
+        <button id="waiting-close" type="button" class="waiting-card__close" style="display:none;">확인</button>
+      </div>
+    </div>
     <div id="upload-overlay" class="upload-overlay" aria-live="polite">
       <div class="upload-card">
         <div class="upload-card__title">이미지 전송 중</div>

@@ -10,6 +10,10 @@ const waitingPanel = document.getElementById("waiting-panel") as HTMLDivElement 
 const waitingTitle = document.getElementById("waiting-title") as HTMLDivElement | null;
 const waitingDesc = document.getElementById("waiting-desc") as HTMLDivElement | null;
 const waitingPulse = document.getElementById("waiting-pulse") as HTMLDivElement | null;
+const waitingImage = document.getElementById("waiting-image") as HTMLImageElement | null;
+const waitingTimer = document.getElementById("waiting-timer") as HTMLDivElement | null;
+const captureSlot = document.getElementById("capture-slot") as HTMLDivElement | null;
+const waitingClose = document.getElementById("waiting-close") as HTMLButtonElement | null;
 const isLocalMode =
   ["localhost", "127.0.0.1", "::1"].includes(location.hostname) ||
   location.protocol === "file:";
@@ -19,11 +23,14 @@ const UPLOAD_TYPE = "image/jpeg";
 const UPLOAD_QUALITY = 0.92;
 const UPLOAD_EXTENSION = "jpg";
 const MAX_CANVAS_WIDTH = 720;
+const WAITING_TIMEOUT_SEC = 60;
 
 let stream: MediaStream | null = null;
 let hasCapture = false;
 let currentFacing: "environment" | "user" = "environment";
 let waitingTimeout: number | null = null;
+let waitingInterval: number | null = null;
+let waitingRemaining = WAITING_TIMEOUT_SEC;
 
 function setButtonState() {
   const hasStream = Boolean(stream);
@@ -81,6 +88,8 @@ async function takePhoto() {
       showWaitingPanel(false);
       clearWaitingTimeout();
       setWaitingStatus("pending");
+      clearResultImage();
+      resetWaitingCountdown();
     }
     return;
   }
@@ -114,6 +123,8 @@ async function takePhoto() {
   showWaitingPanel(false);
   clearWaitingTimeout();
   setWaitingStatus("pending");
+  clearResultImage();
+  resetWaitingCountdown();
 }
 
 async function generateImage() {
@@ -177,6 +188,11 @@ stopBtn?.addEventListener("click", stopCamera);
 switchBtn?.addEventListener("click", () => {
   const nextFacing = currentFacing === "environment" ? "user" : "environment";
   openCamera(nextFacing);
+});
+waitingClose?.addEventListener("click", () => {
+  setWaitingStatus("pending");
+  clearResultImage();
+  showWaitingPanel(false);
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -458,10 +474,12 @@ function showWaitingPanel(show: boolean) {
   if (!waitingPanel || !canvas) return;
   if (show) {
     waitingPanel.classList.add("is-active");
-    canvas.style.visibility = "hidden";
+    canvas.classList.add("is-hidden");
+    captureSlot?.classList.add("is-hidden");
   } else {
     waitingPanel.classList.remove("is-active");
-    canvas.style.visibility = "visible";
+    canvas.classList.remove("is-hidden");
+    captureSlot?.classList.remove("is-hidden");
   }
 }
 
@@ -473,6 +491,15 @@ function setWaitingStatus(status: "pending" | "done" | "failed") {
   waitingPanel.classList.toggle("is-failed", isFailed);
   if (waitingPulse) {
     waitingPulse.style.animationPlayState = isDone || isFailed ? "paused" : "running";
+  }
+  if (waitingImage) {
+    waitingImage.style.display = isDone && waitingImage.src ? "block" : "none";
+  }
+  if (waitingClose) {
+    waitingClose.style.display = isDone ? "inline-flex" : "none";
+  }
+  if (waitingTimer) {
+    waitingTimer.style.display = status === "pending" ? "block" : "none";
   }
   if (waitingTitle) {
     waitingTitle.textContent = isDone
@@ -495,19 +522,35 @@ function handleWsPayload(payload: unknown) {
   const type = (payload as { type?: string }).type;
   if (type === "image_complete") {
     clearWaitingTimeout();
+    resetWaitingCountdown();
     setWaitingStatus("done");
-    setTimeout(() => {
-      showWaitingPanel(false);
-    }, 1200);
+    const url = (payload as { downloadUrl?: string }).downloadUrl;
+    if (url) {
+      setResultImage(url);
+    }
+    showWaitingPanel(true);
   }
 }
 
 function startWaitingTimeout() {
   clearWaitingTimeout();
+  resetWaitingCountdown();
   waitingTimeout = window.setTimeout(() => {
     setWaitingStatus("failed");
     showWaitingPanel(true);
   }, 60_000);
+  waitingInterval = window.setInterval(() => {
+    waitingRemaining -= 1;
+    if (waitingRemaining <= 0) {
+      waitingRemaining = 0;
+      updateWaitingTimer();
+      clearWaitingTimeout();
+      setWaitingStatus("failed");
+      showWaitingPanel(true);
+    } else {
+      updateWaitingTimer();
+    }
+  }, 1000);
 }
 
 function clearWaitingTimeout() {
@@ -515,6 +558,32 @@ function clearWaitingTimeout() {
     window.clearTimeout(waitingTimeout);
     waitingTimeout = null;
   }
+  if (waitingInterval !== null) {
+    window.clearInterval(waitingInterval);
+    waitingInterval = null;
+  }
+}
+
+function setResultImage(url: string) {
+  if (!waitingImage) return;
+  waitingImage.src = url;
+  waitingImage.style.display = "block";
+}
+
+function clearResultImage() {
+  if (!waitingImage) return;
+  waitingImage.removeAttribute("src");
+  waitingImage.style.display = "none";
+}
+
+function resetWaitingCountdown() {
+  waitingRemaining = WAITING_TIMEOUT_SEC;
+  updateWaitingTimer();
+}
+
+function updateWaitingTimer() {
+  if (!waitingTimer) return;
+  waitingTimer.textContent = `최대 대기 시간 ${waitingRemaining}초`;
 }
 
 setButtonState();
