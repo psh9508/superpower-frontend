@@ -66,10 +66,40 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        flex-direction: column;
+        gap: 10px;
       }
-      .capture-canvas.is-hidden {
-        visibility: hidden;
+      .capture-canvas {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
         pointer-events: none;
+      }
+      .preview-grid {
+        display: none;
+        width: 100%;
+        gap: 8px;
+        padding: 8px;
+        box-sizing: border-box;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      }
+      .preview-grid.is-visible {
+        display: grid;
+      }
+      .preview-item {
+        position: relative;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #f8f9fb;
+        aspect-ratio: 4 / 5;
+      }
+      .preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
       }
       .waiting-panel {
         position: fixed;
@@ -467,11 +497,16 @@
       <div id="capture-slot" class="capture-slot">
         <div class="capture-slot__inner">
           <canvas id="canvas" class="capture-canvas" width="720" height="960"></canvas>
+          <div id="preview-grid" class="preview-grid" aria-live="polite"></div>
         </div>
       </div>
       <div class="controls">
         <button id="save">이미지 생성</button>
         <button id="stop" disabled>카메라 종료</button>
+      </div>
+      <div class="controls">
+        <button id="upload-files">사진 올리기 (여러장)</button>
+        <input id="file-picker" type="file" accept="image/*" multiple style="display:none" />
       </div>
       <p class="hint">
         iOS Safari는 HTTPS 또는 localhost에서만 카메라 접근이 가능합니다.<br />

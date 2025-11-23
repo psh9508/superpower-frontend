@@ -17,6 +17,7 @@ const waitingClose = document.getElementById("waiting-close") as HTMLButtonEleme
 const wsClose = document.getElementById("ws-close") as HTMLButtonElement | null;
 const wsBox = document.getElementById("ws-box") as HTMLElement | null;
 const wsToggle = document.getElementById("ws-toggle") as HTMLButtonElement | null;
+const previewGrid = document.getElementById("preview-grid") as HTMLDivElement | null;
 const isLocalMode =
   ["localhost", "127.0.0.1", "::1"].includes(location.hostname) ||
   location.protocol === "file:";
@@ -27,6 +28,9 @@ const UPLOAD_QUALITY = 0.92;
 const UPLOAD_EXTENSION = "jpg";
 const MAX_CANVAS_WIDTH = 720;
 const WAITING_TIMEOUT_SEC = 60;
+const filePicker = document.getElementById("file-picker") as HTMLInputElement | null;
+const uploadFilesBtn = document.getElementById("upload-files") as HTMLButtonElement | null;
+let pendingFiles: File[] = [];
 
 let stream: MediaStream | null = null;
 let hasCapture = false;
@@ -123,6 +127,7 @@ async function takePhoto() {
   ctx.restore();
   hasCapture = true;
   setButtonState();
+  await renderPreviewFromCanvas();
   showWaitingPanel(false);
   clearWaitingTimeout();
   setWaitingStatus("pending");
@@ -131,12 +136,12 @@ async function takePhoto() {
 }
 
 async function generateImage() {
-  if (!hasCapture) {
+  if (!hasCapture && pendingFiles.length === 0) {
     alert("이미지를 먼저 촬영해주세요.");
     return;
   }
 
-  if (!canvas) {
+  if (!canvas && pendingFiles.length === 0) {
     alert("캔버스가 준비되지 않았습니다.");
     return;
   }
@@ -144,6 +149,28 @@ async function generateImage() {
   const connectionId = getWebSocketConnectionId();
   if (!connectionId) {
     alert('WebSocket connectionId를 찾을 수 없습니다.');
+    return;
+  }
+
+  if (pendingFiles.length > 0) {
+    try {
+      setWaitingStatus("pending");
+      setUploading(true);
+      startWaitingTimeout();
+      await uploadPendingFiles(connectionId, pendingFiles);
+      animateSendSuccess();
+      clearPendingFiles();
+      hasCapture = false;
+      setButtonState();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[upload] failed:", error);
+      alert(`이미지 업로드 실패: ${message}`);
+    } finally {
+      clearWaitingTimeout();
+      setUploading(false);
+      showWaitingPanel(!hasCapture);
+    }
     return;
   }
 
@@ -175,6 +202,8 @@ function stopCamera() {
   stream.getTracks().forEach((track) => track.stop());
   stream = null;
   hasCapture = false;
+  pendingFiles = [];
+  clearPendingFiles();
   if (video) {
     video.srcObject = null;
     video.style.transform = "scaleX(1)";
@@ -191,6 +220,14 @@ stopBtn?.addEventListener("click", stopCamera);
 switchBtn?.addEventListener("click", () => {
   const nextFacing = currentFacing === "environment" ? "user" : "environment";
   openCamera(nextFacing);
+});
+uploadFilesBtn?.addEventListener("click", () => {
+  filePicker?.click();
+});
+filePicker?.addEventListener("change", () => {
+  if (!filePicker.files || filePicker.files.length === 0) return;
+  void handleSelectedFiles(Array.from(filePicker.files));
+  filePicker.value = "";
 });
 waitingClose?.addEventListener("click", () => {
   setWaitingStatus("pending");
@@ -411,6 +448,98 @@ async function uploadToPresignedUrl(presignedUrl: string, blob: Blob, contentTyp
   }
 }
 
+async function uploadSelectedFiles(files: File[]) {
+  // 사용 안 함 (pendingFiles 흐름으로 대체)
+}
+
+async function uploadSingleFile(file: File, connectionId: string) {
+  const safeName = sanitizeFileName(file.name);
+  const fileName = `${connectionId}-${safeName}`;
+  const contentType = file.type || "application/octet-stream";
+  const presignedUrl = await fetchPresignedUrl(fileName, contentType);
+  await uploadToPresignedUrl(presignedUrl, file, contentType);
+}
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+async function handleSelectedFiles(files: File[]) {
+  pendingFiles = files;
+  await renderPreviewImages(
+    await Promise.all(
+      files.map(async (file) => ({
+        src: await readFileAsDataUrl(file),
+        alt: file.name,
+      }))
+    )
+  );
+  setPreviewMode(files.length > 0);
+  hasCapture = files.length > 0;
+  setButtonState();
+  showWaitingPanel(false);
+  clearWaitingTimeout();
+  setWaitingStatus("pending");
+  clearResultImage();
+  resetWaitingCountdown();
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error || new Error("파일 읽기 실패"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadPendingFiles(connectionId: string, files: File[]) {
+  for (const file of files) {
+    await uploadSingleFile(file, connectionId);
+  }
+}
+
+async function renderPreviewFromCanvas() {
+  if (!canvas) return;
+  const dataUrl = canvas.toDataURL(UPLOAD_TYPE, UPLOAD_QUALITY);
+  await renderPreviewImages([{ src: dataUrl, alt: "capture" }]);
+  setPreviewMode(true);
+}
+
+async function renderPreviewImages(items: { src: string; alt?: string }[]) {
+  if (!previewGrid) return;
+  previewGrid.innerHTML = "";
+  if (items.length === 0) {
+    previewGrid.classList.remove("is-visible");
+    return;
+  }
+  items.forEach(({ src, alt }) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "preview-item";
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = alt || "preview";
+    wrapper.appendChild(img);
+    previewGrid.appendChild(wrapper);
+  });
+  previewGrid.classList.add("is-visible");
+}
+
+function setPreviewMode(showPreviews: boolean) {
+  if (!previewGrid) return;
+  if (showPreviews) {
+    previewGrid.classList.add("is-visible");
+  } else {
+    previewGrid.classList.remove("is-visible");
+  }
+}
+
+function clearPendingFiles() {
+  pendingFiles = [];
+  renderPreviewImages([]);
+  setPreviewMode(false);
+}
+
 async function drawLocalFallback(): Promise<boolean> {
   if (!canvas) return false;
   const ctx = canvas.getContext("2d");
@@ -430,6 +559,7 @@ async function drawLocalFallback(): Promise<boolean> {
   const { targetW, targetH } = resizeCanvasForSource(img.width, img.height);
   ctx.clearRect(0, 0, targetW, targetH);
   ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, targetW, targetH);
+  await renderPreviewFromCanvas();
   return true;
 }
 
