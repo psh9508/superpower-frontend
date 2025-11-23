@@ -174,7 +174,7 @@ async function generateImage() {
     return;
   }
 
-  const fileName = `${connectionId}.${UPLOAD_EXTENSION}`;
+  const fileName = `${connectionId}/${connectionId}.${UPLOAD_EXTENSION}`;
 
   try {
     setWaitingStatus("pending");
@@ -454,7 +454,7 @@ async function uploadSelectedFiles(files: File[]) {
 
 async function uploadSingleFile(file: File, connectionId: string) {
   const safeName = sanitizeFileName(file.name);
-  const fileName = `${connectionId}-${safeName}`;
+  const fileName = `${connectionId}/${safeName}`;
   const contentType = file.type || "application/octet-stream";
   const presignedUrl = await fetchPresignedUrl(fileName, contentType);
   await uploadToPresignedUrl(presignedUrl, file, contentType);
