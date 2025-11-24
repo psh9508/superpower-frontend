@@ -22,7 +22,7 @@ const isLocalMode =
   ["localhost", "127.0.0.1", "::1"].includes(location.hostname) ||
   location.protocol === "file:";
 const LOCAL_FALLBACK_IMAGE = "static/다운로드.jpg";
-const PRESIGN_ENDPOINT = "https://jxvrngbw4b.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
+const PRESIGN_ENDPOINT = "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/get-input-url";
 const STEP_FUNCTION_ENDPOINT = "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/make-image";
 const UPLOAD_TYPE = "image/jpeg";
 const UPLOAD_QUALITY = 0.92;
@@ -253,7 +253,7 @@ document.addEventListener("visibilitychange", () => {
 updateSwitchLabel();
 
 // WebSocket 접속 코드
-const SOCKET_URL = "wss://9ad8ivmy7e.execute-api.ap-northeast-2.amazonaws.com/dev/";
+const SOCKET_URL = "wss://az7pmwxhyi.execute-api.ap-northeast-2.amazonaws.com/production/";
 const wsStatus = document.getElementById("ws-status");
 const wsMessages = document.getElementById("ws-messages");
 const wsCounter = document.getElementById("ws-counter");
