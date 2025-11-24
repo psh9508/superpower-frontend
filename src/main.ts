@@ -23,6 +23,7 @@ const isLocalMode =
   location.protocol === "file:";
 const LOCAL_FALLBACK_IMAGE = "static/다운로드.jpg";
 const PRESIGN_ENDPOINT = "https://jxvrngbw4b.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
+const STEP_FUNCTION_ENDPOINT = "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/make-image";
 const UPLOAD_TYPE = "image/jpeg";
 const UPLOAD_QUALITY = 0.92;
 const UPLOAD_EXTENSION = "jpg";
@@ -31,6 +32,7 @@ const WAITING_TIMEOUT_SEC = 60;
 const filePicker = document.getElementById("file-picker") as HTMLInputElement | null;
 const uploadFilesBtn = document.getElementById("upload-files") as HTMLButtonElement | null;
 let pendingFiles: File[] = [];
+type S3Location = { bucket: string; key: string };
 
 let stream: MediaStream | null = null;
 let hasCapture = false;
@@ -157,17 +159,17 @@ async function generateImage() {
       setWaitingStatus("pending");
       setUploading(true);
       startWaitingTimeout();
-      await uploadPendingFiles(connectionId, pendingFiles);
+      const locations = await uploadPendingFiles(connectionId, pendingFiles);
       animateSendSuccess();
       clearPendingFiles();
       hasCapture = false;
       setButtonState();
+      await startStepFunction(locations);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error("[upload] failed:", error);
       alert(`이미지 업로드 실패: ${message}`);
     } finally {
-      clearWaitingTimeout();
       setUploading(false);
       showWaitingPanel(!hasCapture);
     }
@@ -184,13 +186,14 @@ async function generateImage() {
     const blob = await canvasToBlob(canvas, UPLOAD_TYPE, UPLOAD_QUALITY);
     await uploadToPresignedUrl(presignedUrl, blob, UPLOAD_TYPE);
     animateSendSuccess();
+    const location = extractS3Location(presignedUrl);
+    await startStepFunction([location]);
     hasCapture = false;
     setButtonState();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[upload] failed:", error);
     alert(`이미지 업로드 실패: ${message}`);
-    clearWaitingTimeout();
   } finally {
     setUploading(false);
     showWaitingPanel(!hasCapture);
@@ -458,6 +461,7 @@ async function uploadSingleFile(file: File, connectionId: string) {
   const contentType = file.type || "application/octet-stream";
   const presignedUrl = await fetchPresignedUrl(fileName, contentType);
   await uploadToPresignedUrl(presignedUrl, file, contentType);
+  return extractS3Location(presignedUrl);
 }
 
 function sanitizeFileName(name: string): string {
@@ -493,10 +497,13 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-async function uploadPendingFiles(connectionId: string, files: File[]) {
+async function uploadPendingFiles(connectionId: string, files: File[]): Promise<S3Location[]> {
+  const locations: S3Location[] = [];
   for (const file of files) {
-    await uploadSingleFile(file, connectionId);
+    const loc = await uploadSingleFile(file, connectionId);
+    locations.push(loc);
   }
+  return locations;
 }
 
 async function renderPreviewFromCanvas() {
@@ -744,5 +751,32 @@ function toggleWsBox(forceShow?: boolean) {
     wsBox.classList.add("is-hidden");
     wsToggle.classList.remove("is-hidden");
     wsToggle.setAttribute("aria-expanded", "false");
+  }
+}
+
+function extractS3Location(presignedUrl: string): S3Location {
+  const url = new URL(presignedUrl);
+  const hostParts = url.hostname.split(".");
+  const bucket = hostParts[0] || "";
+  const key = decodeURIComponent(url.pathname.replace(/^\//, ""));
+  return { bucket, key };
+}
+
+async function startStepFunction(images: S3Location[]) {
+  if (!images.length) return;
+  const payload = images;
+  const body = JSON.stringify({ input: payload });
+  console.log("[stepfn] request body:", body);
+  const response = await fetch(STEP_FUNCTION_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    console.error("[stepfn] failed", response.status, text);
+    throw new Error(`Step Functions 호출 실패 (HTTP ${response.status}): ${text || "(no body)"}`);
   }
 }
