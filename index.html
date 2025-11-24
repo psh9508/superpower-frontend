@@ -31,6 +31,170 @@
         align-items: center;
         gap: 12px;
       }
+      .splash {
+        width: min(92vw, 520px);
+        display: grid;
+        gap: 16px;
+        margin-top: 32px;
+        padding: 32px 20px 36px;
+        border-radius: 24px;
+        background: linear-gradient(145deg, #0d1117, #202b41);
+        color: #f2f6ff;
+        box-shadow: 0 20px 50px rgba(10, 15, 25, 0.45);
+        text-align: left;
+      }
+      .splash__title {
+        font-size: clamp(26px, 6vw, 32px);
+        margin: 0;
+        font-weight: 700;
+      }
+      .splash__desc {
+        margin: 0;
+        color: #a4b8d5;
+        line-height: 1.5;
+      }
+      .splash__start {
+        padding: 20px;
+        border-radius: 18px;
+        border: none;
+        background: linear-gradient(120deg, #ff8f70, #ff3d54);
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        box-shadow: 0 20px 40px rgba(255, 61, 84, 0.45);
+        width: 100%;
+        text-align: center;
+        flex: none;
+      }
+      .camera-stage {
+        width: 100%;
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+      }
+      .camera-stage.is-hidden,
+      .splash.is-hidden {
+        display: none;
+      }
+      .camera-stage__video {
+        position: relative;
+        width: min(92vw, 520px);
+        transition: opacity 0.2s ease;
+      }
+      .timeout-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .timeout-overlay.is-visible {
+        pointer-events: auto;
+      }
+      .timeout-overlay__card {
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        display: grid;
+        gap: 10px;
+        text-align: center;
+        padding: 24px 26px;
+        border-radius: 24px;
+        background: linear-gradient(145deg, #0d1117, #202b41);
+        color: #f5f7ff;
+        width: min(360px, 90vw);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      }
+      .timeout-overlay.is-visible .timeout-overlay__card {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .timeout-overlay__title {
+        font-size: clamp(20px, 5vw, 24px);
+        font-weight: 700;
+        margin: 0;
+      }
+      .timeout-overlay__desc {
+        margin: 0;
+        color: #d0dbff;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .timeout-overlay__action {
+        padding: 14px 20px;
+        border-radius: 16px;
+        border: none;
+        background: linear-gradient(120deg, #ff8f70, #ff3d54);
+        color: #fff;
+        font-weight: 700;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .expression-overlay {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 16px);
+        max-width: 620px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        background: transparent;
+        color: #f8fbff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        text-align: center;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        transition: opacity 0.25s ease, transform 0.25s ease;
+      }
+      .expression-overlay.is-hidden {
+        opacity: 0;
+        transform: translate(-50%, -8px);
+        pointer-events: none;
+      }
+      .expression-center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .expression-center__icon {
+        font-size: clamp(56px, 10vw, 80px);
+      }
+      .expression-center__label {
+        margin: 0;
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .expression-overlay__footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+      }
+      .expression-overlay__countdown {
+        margin: 0;
+        min-width: 60px;
+        font-size: 15px;
+        color: #dbe8ff;
+        text-align: center;
+      }
+      .reroll-button {
+        width: min(92vw, 360px);
+        padding: 14px;
+        border-radius: 16px;
+        border: none;
+        background: linear-gradient(120deg, #ff8f70, #ff3d54);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 12px 24px rgba(255, 61, 84, 0.3);
+      }
       video,
       canvas {
         width: min(92vw, 480px);
@@ -254,6 +418,16 @@
         width: 100%;
         max-width: 480px;
         padding: 0 16px;
+      }
+      .camera-switch-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        border: none;
+        background: transparent;
+        font-size: 24px;
+        color: #fff;
+        cursor: pointer;
       }
       button {
         flex: 1 0 140px;
@@ -488,30 +662,70 @@
       <span id="ws-status" class="ws-status" aria-label="WebSocket 상태" title="WebSocket 상태"></span>
     </header>
     <main>
-      <video id="video" playsinline autoplay muted></video>
-      <div class="controls">
-        <button id="open">카메라 열기</button>
-        <button id="snap" disabled>사진 찍기</button>
-        <button id="switch" disabled>전환</button>
-      </div>
-      <div id="capture-slot" class="capture-slot">
-        <div class="capture-slot__inner">
-          <canvas id="canvas" class="capture-canvas" width="720" height="960"></canvas>
-          <div id="preview-grid" class="preview-grid" aria-live="polite"></div>
+      <section id="splash-screen" class="splash">
+        <p class="splash__title">GAME START</p>
+        <p class="splash__desc">
+          버튼을 누르면 카메라가 자동으로 켜지고,<br />
+          3가지 표정 중 하나가 랜덤으로 지정됩니다.
+        </p>
+        <button id="open" class="splash__start">GAME START</button>
+      </section>
+      <section id="camera-stage" class="camera-stage is-hidden" aria-live="polite">
+        <div class="camera-stage__video">
+          <video id="video" playsinline autoplay muted></video>
+          <button
+            id="switch"
+            type="button"
+            class="camera-switch-btn"
+            aria-label="카메라 전환"
+            title="카메라 전환"
+          >
+            🔄
+          </button>
+          <div id="timeout-overlay" class="timeout-overlay">
+            <div class="timeout-overlay__card">
+              <p class="timeout-overlay__title">시간 초과!</p>
+              <p class="timeout-overlay__desc">다시 뽑기 버튼을 눌러 새로운 표정을 받아보세요.</p>
+              <button id="timeout-retry" type="button" class="timeout-overlay__action">다시 찍기</button>
+            </div>
+          </div>
+          <div id="expression-overlay" class="expression-overlay">
+            <div class="expression-overlay__body">
+              <div class="expression-center">
+                <div id="expression-icon" class="expression-center__icon" aria-hidden="true">🎲</div>
+                <p id="expression-label" class="expression-center__label">표정을 뽑아보세요.</p>
+              </div>
+              <div class="expression-overlay__footer">
+                <p id="capture-countdown" class="expression-overlay__countdown"></p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="controls">
-        <button id="save">이미지 생성</button>
-        <button id="stop" disabled>카메라 종료</button>
-      </div>
-      <div class="controls">
-        <button id="upload-files">사진 올리기 (여러장)</button>
-        <input id="file-picker" type="file" accept="image/*" multiple style="display:none" />
-      </div>
-      <p class="hint">
-        iOS Safari는 HTTPS 또는 localhost에서만 카메라 접근이 가능합니다.<br />
-        권한 팝업이 보이면 반드시 "허용"을 선택하세요.
-      </p>
+        <div class="controls">
+          <button id="snap" disabled>사진 찍기</button>
+          <button id="expression-reroll" type="button" class="camera-tool camera-tool--reroll">
+            다시 뽑기
+          </button>
+        </div>
+        <div id="capture-slot" class="capture-slot">
+          <div class="capture-slot__inner">
+            <canvas id="canvas" class="capture-canvas" width="720" height="960"></canvas>
+            <div id="preview-grid" class="preview-grid" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="controls">
+          <button id="save">이미지 생성</button>
+          <button id="stop" disabled>카메라 종료</button>
+        </div>
+        <div class="controls">
+          <button id="upload-files">사진 올리기 (여러장)</button>
+          <input id="file-picker" type="file" accept="image/*" multiple style="display:none" />
+        </div>
+        <p class="hint">
+          iOS Safari는 HTTPS 또는 localhost에서만 카메라 접근이 가능합니다.<br />
+          권한 팝업이 보이면 반드시 "허용"을 선택하세요.
+        </p>
+      </section>
     </main>
     <section id="ws-box" class="ws-box is-hidden" aria-live="polite">
       <div class="ws-box__header">

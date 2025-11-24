@@ -18,6 +18,15 @@ const wsClose = document.getElementById("ws-close") as HTMLButtonElement | null;
 const wsBox = document.getElementById("ws-box") as HTMLElement | null;
 const wsToggle = document.getElementById("ws-toggle") as HTMLButtonElement | null;
 const previewGrid = document.getElementById("preview-grid") as HTMLDivElement | null;
+const splashScreen = document.getElementById("splash-screen") as HTMLElement | null;
+const cameraStage = document.getElementById("camera-stage") as HTMLElement | null;
+const expressionOverlay = document.getElementById("expression-overlay") as HTMLDivElement | null;
+const expressionIcon = document.getElementById("expression-icon") as HTMLDivElement | null;
+const expressionLabel = document.getElementById("expression-label") as HTMLParagraphElement | null;
+const captureCountdown = document.getElementById("capture-countdown") as HTMLParagraphElement | null;
+const rerollBtn = document.getElementById("expression-reroll") as HTMLButtonElement | null;
+const timeoutOverlay = document.getElementById("timeout-overlay") as HTMLDivElement | null;
+const timeoutRetryBtn = document.getElementById("timeout-retry") as HTMLButtonElement | null;
 const isLocalMode =
   ["localhost", "127.0.0.1", "::1"].includes(location.hostname) ||
   location.protocol === "file:";
@@ -29,10 +38,22 @@ const UPLOAD_QUALITY = 0.92;
 const UPLOAD_EXTENSION = "jpg";
 const MAX_CANVAS_WIDTH = 720;
 const WAITING_TIMEOUT_SEC = 60;
+const EXPRESSION_SPIN_DURATION_MS = 3000;
+const EXPRESSION_SPIN_INTERVAL_MS = 120;
+const CAPTURE_TIME_LIMIT_SEC = 10;
 const filePicker = document.getElementById("file-picker") as HTMLInputElement | null;
 const uploadFilesBtn = document.getElementById("upload-files") as HTMLButtonElement | null;
 let pendingFiles: File[] = [];
 type S3Location = { bucket: string; key: string };
+type ExpressionOption = { icon: string; label: string };
+const EXPRESSION_OPTIONS: ExpressionOption[] = [
+  { icon: "😄", label: "웃는 표정" },
+  { icon: "🤪", label: "바보 표정" },
+  { icon: "😡", label: "화난 표정" },
+  { icon: "😎", label: "자신감 표정" },
+  { icon: "😱", label: "놀란 표정" },
+  { icon: "😢", label: "슬픈 표정" },
+];
 
 let stream: MediaStream | null = null;
 let hasCapture = false;
@@ -40,21 +61,36 @@ let currentFacing: "environment" | "user" = "environment";
 let waitingTimeout: number | null = null;
 let waitingInterval: number | null = null;
 let waitingRemaining = WAITING_TIMEOUT_SEC;
+let expressionInterval: number | null = null;
+let expressionTimeout: number | null = null;
+let captureCountdownTimer: number | null = null;
+let captureTimeRemaining = CAPTURE_TIME_LIMIT_SEC;
+let isSpinningExpression = false;
+let isCaptureWindowActive = false;
+let expressionOverlayHideTimeout: number | null = null;
+let isTimeoutState = false;
 
 function setButtonState() {
   const hasStream = Boolean(stream);
-  const allowSnap = hasStream || isLocalMode;
+  const allowSnap = isCaptureWindowActive && (hasStream || isLocalMode);
   if (snapBtn) snapBtn.disabled = !allowSnap;
   if (stopBtn) stopBtn.disabled = !hasStream;
   if (switchBtn) switchBtn.disabled = !hasStream;
   if (saveBtn) saveBtn.disabled = !hasCapture;
+  if (rerollBtn) {
+    const stageVisible = cameraStage ? !cameraStage.classList.contains("is-hidden") : false;
+    rerollBtn.disabled = !stageVisible || isSpinningExpression;
+  }
   updateSwitchLabel();
   updateVideoTransform();
 }
 
 function updateSwitchLabel() {
   if (!switchBtn) return;
-  switchBtn.textContent = currentFacing === "environment" ? "전면 전환" : "후면 전환";
+  const label = currentFacing === "environment" ? "전면 전환" : "후면 전환";
+  switchBtn.textContent = "🔄";
+  switchBtn.setAttribute("aria-label", label);
+  switchBtn.setAttribute("title", label);
 }
 
 function updateVideoTransform() {
@@ -63,8 +99,70 @@ function updateVideoTransform() {
   video.style.transform = isFront ? "scaleX(-1)" : "scaleX(1)";
 }
 
-async function openCamera(facing: "environment" | "user" = currentFacing) {
-  if (!video) return;
+function setExpressionOverlayHidden(hidden: boolean) {
+  if (!expressionOverlay) return;
+  expressionOverlay.classList.toggle("is-hidden", hidden);
+}
+
+function showExpressionOverlay() {
+  if (expressionOverlayHideTimeout !== null) {
+    window.clearTimeout(expressionOverlayHideTimeout);
+    expressionOverlayHideTimeout = null;
+  }
+  setExpressionOverlayHidden(false);
+}
+
+function hideExpressionOverlayAfter(delayMs: number) {
+  if (expressionOverlayHideTimeout !== null) {
+    window.clearTimeout(expressionOverlayHideTimeout);
+  }
+  expressionOverlayHideTimeout = window.setTimeout(() => {
+    if (!isTimeoutState) {
+      setExpressionOverlayHidden(true);
+    }
+    expressionOverlayHideTimeout = null;
+  }, delayMs);
+}
+
+function toggleSplashScreen(showSplash: boolean) {
+  if (splashScreen) {
+    splashScreen.classList.toggle("is-hidden", !showSplash);
+  }
+  if (cameraStage) {
+    cameraStage.classList.toggle("is-hidden", showSplash);
+  }
+  if (openBtn) {
+    openBtn.disabled = !showSplash;
+  }
+  if (showSplash) {
+    setExpressionOverlayHidden(true);
+    setTimeoutState(false);
+  } else {
+    showExpressionOverlay();
+    setTimeoutState(false);
+  }
+}
+
+function isSplashVisible(): boolean {
+  return splashScreen ? !splashScreen.classList.contains("is-hidden") : false;
+}
+
+function setTimeoutState(active: boolean) {
+  isTimeoutState = active;
+  if (timeoutOverlay) {
+    timeoutOverlay.classList.toggle("is-visible", active);
+  }
+  if (active) {
+    setExpressionOverlayHidden(true);
+  } else {
+    if (!isSplashVisible()) {
+      showExpressionOverlay();
+    }
+  }
+}
+
+async function openCamera(facing: "environment" | "user" = currentFacing): Promise<boolean> {
+  if (!video) return false;
   try {
     currentFacing = facing;
     if (stream) {
@@ -78,17 +176,180 @@ async function openCamera(facing: "environment" | "user" = currentFacing) {
     });
     video.srcObject = stream;
     await video.play();
+    return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     alert(`카메라 접근 실패: ${message}`);
     stream = null;
+    return false;
   } finally {
     setButtonState();
     updateVideoTransform();
   }
 }
 
+function updateExpressionStatus(icon: string, text: string) {
+  if (expressionIcon) {
+    expressionIcon.textContent = icon;
+  }
+  if (expressionLabel) {
+    expressionLabel.textContent = text;
+  }
+}
+
+function setCaptureCountdownMessage(message?: string) {
+  if (!captureCountdown) return;
+  captureCountdown.textContent = message || "";
+}
+
+function refreshCaptureCountdown() {
+  if (!isCaptureWindowActive) {
+    setCaptureCountdownMessage();
+    return;
+  }
+  setCaptureCountdownMessage(`${captureTimeRemaining}초`);
+}
+
+function clearExpressionSpin() {
+  if (expressionInterval !== null) {
+    window.clearInterval(expressionInterval);
+    expressionInterval = null;
+  }
+  if (expressionTimeout !== null) {
+    window.clearTimeout(expressionTimeout);
+    expressionTimeout = null;
+  }
+  isSpinningExpression = false;
+  expressionOverlay?.classList.remove("is-spinning");
+}
+
+function getRandomExpression(): ExpressionOption {
+  return EXPRESSION_OPTIONS[Math.floor(Math.random() * EXPRESSION_OPTIONS.length)];
+}
+
+function startExpressionSpin() {
+  clearExpressionSpin();
+  setTimeoutState(false);
+  updateExpressionStatus("🎲", "표정을 뽑는 중...");
+  isSpinningExpression = true;
+  showExpressionOverlay();
+  expressionOverlay?.classList.add("is-spinning");
+  expressionInterval = window.setInterval(() => {
+    const option = getRandomExpression();
+    updateExpressionStatus(option.icon, `${option.label} 준비!`);
+  }, EXPRESSION_SPIN_INTERVAL_MS);
+  expressionTimeout = window.setTimeout(() => {
+    finalizeExpressionSelection();
+  }, EXPRESSION_SPIN_DURATION_MS);
+}
+
+function finalizeExpressionSelection() {
+  clearExpressionSpin();
+  const option = getRandomExpression();
+  updateExpressionStatus(option.icon, `${option.label}!`);
+  hideExpressionOverlayAfter(1000);
+  startCaptureWindow();
+}
+
+function startCaptureWindow() {
+  endCaptureWindow(false);
+  isCaptureWindowActive = true;
+  captureTimeRemaining = CAPTURE_TIME_LIMIT_SEC;
+  refreshCaptureCountdown();
+  setTimeoutState(false);
+  captureCountdownTimer = window.setInterval(() => {
+    captureTimeRemaining -= 1;
+    if (captureTimeRemaining <= 0) {
+      updateExpressionStatus("🎲", "시간 초과! GAME START 버튼을 눌러 다시 시도하세요.");
+      endCaptureWindow(true);
+    } else {
+      refreshCaptureCountdown();
+    }
+  }, 1000);
+  setButtonState();
+}
+
+function endCaptureWindow(timedOut = false, message?: string) {
+  if (captureCountdownTimer !== null) {
+    window.clearInterval(captureCountdownTimer);
+    captureCountdownTimer = null;
+  }
+  captureTimeRemaining = CAPTURE_TIME_LIMIT_SEC;
+  isCaptureWindowActive = false;
+  if (timedOut) {
+    setCaptureCountdownMessage("시간 초과! GAME START 버튼을 눌러 다시 도전하세요.");
+  } else if (message) {
+    setCaptureCountdownMessage(message);
+  } else {
+    setCaptureCountdownMessage();
+  }
+  if (timedOut && expressionLabel) {
+    const stageVisible = cameraStage ? !cameraStage.classList.contains("is-hidden") : false;
+    expressionLabel.textContent = stageVisible
+      ? "시간 초과! 다시 뽑기 버튼으로 재도전하세요."
+      : "시간 초과! GAME START 버튼을 눌러 다시 시도하세요.";
+  }
+  setTimeoutState(timedOut);
+  setButtonState();
+}
+
+function resetGameFlow(message?: string) {
+  clearExpressionSpin();
+  endCaptureWindow(false);
+  const isStageVisible = cameraStage ? !cameraStage.classList.contains("is-hidden") : false;
+  const defaultMessage = isStageVisible
+    ? "다시 뽑기 버튼으로 표정을 뽑아보세요."
+    : "GAME START 버튼을 눌러 표정을 뽑아보세요.";
+  updateExpressionStatus("🎲", message || defaultMessage);
+  if (isStageVisible) {
+    showExpressionOverlay();
+  } else {
+    setExpressionOverlayHidden(true);
+  }
+}
+
+function handleCaptureComplete() {
+  endCaptureWindow(false, "촬영 완료!");
+  if (expressionLabel) {
+    expressionLabel.textContent = "촬영 완료! 다시 뽑기 버튼으로 새로운 표정을 뽑아보세요.";
+  }
+  setExpressionOverlayHidden(true);
+  setTimeoutState(false);
+  setButtonState();
+}
+
+async function startGameRound(source: "splash" | "reroll" = "reroll") {
+  if (isSpinningExpression) return;
+  clearExpressionSpin();
+  endCaptureWindow(false);
+  if (source === "splash") {
+    toggleSplashScreen(false);
+  }
+  setButtonState();
+  const needsCameraStart = !isLocalMode && (!stream || source === "splash");
+  if (needsCameraStart) {
+    updateExpressionStatus("🎲", "카메라를 준비하고 있어요...");
+    const ready = await openCamera("user");
+    if (!ready) {
+      updateExpressionStatus("🎲", "카메라 접근을 허용한 뒤 다시 시도해주세요.");
+      if (source === "splash") {
+        toggleSplashScreen(true);
+      }
+      resetGameFlow();
+      return;
+    }
+  } else if (isLocalMode) {
+    setButtonState();
+  }
+  startExpressionSpin();
+}
+
 async function takePhoto() {
+  if (!isCaptureWindowActive) {
+    alert("GAME START 버튼으로 표정을 뽑은 뒤 촬영해주세요.");
+    return;
+  }
+
   if (isLocalMode) {
     const ok = await drawLocalFallback();
     if (ok) {
@@ -99,6 +360,7 @@ async function takePhoto() {
       setWaitingStatus("pending");
       clearResultImage();
       resetWaitingCountdown();
+      handleCaptureComplete();
     }
     return;
   }
@@ -135,6 +397,7 @@ async function takePhoto() {
   setWaitingStatus("pending");
   clearResultImage();
   resetWaitingCountdown();
+  handleCaptureComplete();
 }
 
 async function generateImage() {
@@ -177,13 +440,18 @@ async function generateImage() {
   }
 
   const fileName = `${connectionId}/${connectionId}.${UPLOAD_EXTENSION}`;
+  const canvasEl = canvas;
+  if (!canvasEl) {
+    alert("캔버스가 준비되지 않았습니다.");
+    return;
+  }
 
   try {
     setWaitingStatus("pending");
     setUploading(true);
     startWaitingTimeout();
     const presignedUrl = await fetchPresignedUrl(fileName, UPLOAD_TYPE);
-    const blob = await canvasToBlob(canvas, UPLOAD_TYPE, UPLOAD_QUALITY);
+    const blob = await canvasToBlob(canvasEl, UPLOAD_TYPE, UPLOAD_QUALITY);
     await uploadToPresignedUrl(presignedUrl, blob, UPLOAD_TYPE);
     animateSendSuccess();
     const location = extractS3Location(presignedUrl);
@@ -201,9 +469,10 @@ async function generateImage() {
 }
 
 function stopCamera() {
-  if (!stream) return;
-  stream.getTracks().forEach((track) => track.stop());
-  stream = null;
+  if (stream) {
+    stream.getTracks().forEach((track) => track.stop());
+    stream = null;
+  }
   hasCapture = false;
   pendingFiles = [];
   clearPendingFiles();
@@ -211,18 +480,28 @@ function stopCamera() {
     video.srcObject = null;
     video.style.transform = "scaleX(1)";
   }
+  resetGameFlow();
+  toggleSplashScreen(true);
+  setTimeoutState(false);
   setButtonState();
 }
 
 openBtn?.addEventListener("click", () => {
-  void openCamera();
+  void startGameRound("splash");
+});
+rerollBtn?.addEventListener("click", () => {
+  void startGameRound("reroll");
+});
+timeoutRetryBtn?.addEventListener("click", () => {
+  setTimeoutState(false);
+  void startGameRound("reroll");
 });
 snapBtn?.addEventListener("click", takePhoto);
 saveBtn?.addEventListener("click", generateImage);
 stopBtn?.addEventListener("click", stopCamera);
 switchBtn?.addEventListener("click", () => {
   const nextFacing = currentFacing === "environment" ? "user" : "environment";
-  openCamera(nextFacing);
+  void openCamera(nextFacing);
 });
 uploadFilesBtn?.addEventListener("click", () => {
   filePicker?.click();
@@ -449,10 +728,6 @@ async function uploadToPresignedUrl(presignedUrl: string, blob: Blob, contentTyp
     console.error("[upload] failed", response.status, text);
     throw new Error(`S3 업로드 실패 (HTTP ${response.status})`);
   }
-}
-
-async function uploadSelectedFiles(files: File[]) {
-  // 사용 안 함 (pendingFiles 흐름으로 대체)
 }
 
 async function uploadSingleFile(file: File, connectionId: string) {
@@ -733,9 +1008,11 @@ function updateWaitingTimer() {
 }
 
 setButtonState();
+toggleSplashScreen(true);
 setWsIndicator("disconnected");
 renderWsMessages();
 initWebSocket();
+resetGameFlow();
 toggleWsBox(false);
 
 function toggleWsBox(forceShow?: boolean) {
