@@ -3,764 +3,626 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>모바일 카메라 테스트</title>
+    <title>Emotion Baby Pet · Pocket Mood World</title>
     <style>
       :root {
-        color-scheme: light;
+        --color-brand-primary: #ffb9cc;
+        --color-brand-secondary: #ffd8a8;
+        --color-brand-accent: #aee6ff;
+        --color-brand-mint: #cfffe5;
+        --color-planet-lavender: #d6c7ff;
+        --color-tiny-tree-green: #b6e8b0;
+        --color-sunset-orange: #ffbc7d;
+        --color-bg-top: #fbefff;
+        --color-bg-middle: #fdf7ff;
+        --color-bg-bottom: #ffe9f3;
+        --color-text-main: #2f2a3b;
+        --color-text-sub: #7c748c;
+        --color-text-muted: #b0a7c0;
+        --color-card-bg: rgba(255, 255, 255, 0.88);
+        --color-card-border: rgba(255, 255, 255, 0.35);
+        font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+        color: var(--color-text-main);
+        background-color: var(--color-bg-middle);
       }
-      * {
+      *,
+      *::before,
+      *::after {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        text-align: center;
-        background: #fafafa;
-        color: #111;
-      }
-      header {
-        position: relative;
-        padding: 12px 16px;
-        font-weight: 700;
-        font-size: 18px;
-      }
-      main {
-        padding: 8px 0 24px;
+        min-height: 100vh;
+        background: linear-gradient(
+          to bottom,
+          var(--color-bg-top),
+          var(--color-bg-middle),
+          var(--color-bg-bottom)
+        );
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 12px;
+        justify-content: center;
+        align-items: stretch;
+        color: var(--color-text-main);
       }
-      .splash {
-        width: min(92vw, 520px);
-        display: grid;
-        gap: 16px;
-        margin-top: 32px;
-        padding: 32px 20px 36px;
-        border-radius: 24px;
-        background: linear-gradient(145deg, #0d1117, #202b41);
-        color: #f2f6ff;
-        box-shadow: 0 20px 50px rgba(10, 15, 25, 0.45);
-        text-align: left;
+      button {
+        font-family: inherit;
       }
-      .splash__title {
-        font-size: clamp(26px, 6vw, 32px);
-        margin: 0;
-        font-weight: 700;
-      }
-      .splash__desc {
-        margin: 0;
-        color: #a4b8d5;
-        line-height: 1.5;
-      }
-      .splash__start {
-        padding: 20px;
-        border-radius: 18px;
-        border: none;
-        background: linear-gradient(120deg, #ff8f70, #ff3d54);
-        color: #fff;
-        font-size: 18px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        box-shadow: 0 20px 40px rgba(255, 61, 84, 0.45);
-        width: 100%;
-        text-align: center;
-        flex: none;
-      }
-      .camera-stage {
-        width: 100%;
-        display: grid;
-        justify-items: center;
-        gap: 14px;
-      }
-      .camera-stage.is-hidden,
-      .splash.is-hidden {
-        display: none;
-      }
-      .camera-stage__video {
+      .app-root {
         position: relative;
-        width: min(92vw, 520px);
-        transition: opacity 0.2s ease;
+        width: 100%;
+        max-width: 430px;
+        min-height: 100vh;
+        overflow: hidden;
       }
-      .timeout-overlay {
+      .background-layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .glow-orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(40px);
+        opacity: 0.45;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.85), transparent);
+      }
+      .glow-orb-pink {
+        background: radial-gradient(circle, var(--color-brand-primary), transparent);
+      }
+      .glow-orb-blue {
+        background: radial-gradient(circle, var(--color-brand-accent), transparent);
+      }
+      .glow-orb-mint {
+        background: radial-gradient(circle, var(--color-brand-mint), transparent);
+      }
+      .particles span {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.8);
+        opacity: 0.65;
+        animation: floatSlow 12s ease-in-out infinite alternate;
+      }
+      .particle-pink {
+        background: rgba(255, 185, 204, 0.75);
+      }
+      .particle-blue {
+        background: rgba(174, 230, 255, 0.75);
+      }
+      .particle-mint {
+        background: rgba(207, 255, 229, 0.75);
+      }
+      @keyframes floatSlow {
+        0% {
+          transform: translateY(0px);
+        }
+        100% {
+          transform: translateY(-18px);
+        }
+      }
+      @keyframes float-soft {
+        0% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-8px);
+        }
+        100% {
+          transform: translateY(0px);
+        }
+      }
+      .floating-slow {
+        animation: float-soft 8s ease-in-out infinite;
+      }
+      .floating-fast {
+        animation: float-soft 5s ease-in-out infinite;
+      }
+      .pocket-objects {
         position: absolute;
         inset: 0;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 0 32px 12px;
       }
-      .timeout-overlay.is-visible {
-        pointer-events: auto;
+      .pocket-planet,
+      .pocket-tree,
+      .pocket-house {
+        position: relative;
       }
-      .timeout-overlay__card {
-        opacity: 0;
-        transform: translateY(10px);
-        transition: opacity 0.2s ease, transform 0.2s ease;
-        display: grid;
-        gap: 10px;
-        text-align: center;
-        padding: 24px 26px;
-        border-radius: 24px;
-        background: linear-gradient(145deg, #0d1117, #202b41);
-        color: #f5f7ff;
-        width: min(360px, 90vw);
-        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      .pocket-planet {
+        width: 90px;
+        height: 90px;
       }
-      .timeout-overlay.is-visible .timeout-overlay__card {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .timeout-overlay__title {
-        font-size: clamp(20px, 5vw, 24px);
-        font-weight: 700;
-        margin: 0;
-      }
-      .timeout-overlay__desc {
-        margin: 0;
-        color: #d0dbff;
-        font-size: 14px;
-        line-height: 1.4;
-      }
-      .timeout-overlay__action {
-        padding: 14px 20px;
-        border-radius: 16px;
-        border: none;
-        background: linear-gradient(120deg, #ff8f70, #ff3d54);
-        color: #fff;
-        font-weight: 700;
-        font-size: 16px;
-        cursor: pointer;
-      }
-      .expression-overlay {
+      .pocket-planet::before {
+        content: "";
         position: absolute;
-        top: 12px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: calc(100% - 16px);
-        max-width: 620px;
-        padding: 10px 18px;
+        inset: 0;
+        border-radius: 50%;
+        background: var(--color-planet-lavender);
+        box-shadow: 0 20px 40px rgba(214, 199, 255, 0.45);
+      }
+      .pocket-planet::after {
+        content: "";
+        position: absolute;
+        width: 110%;
+        height: 24px;
         border-radius: 999px;
-        background: transparent;
-        color: #f8fbff;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        text-align: center;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-        transition: opacity 0.25s ease, transform 0.25s ease;
+        border: 3px solid rgba(255, 255, 255, 0.5);
+        top: 35px;
+        left: -5%;
+        transform: rotate(-8deg);
       }
-      .expression-overlay.is-hidden {
-        opacity: 0;
-        transform: translate(-50%, -8px);
-        pointer-events: none;
+      .pocket-house {
+        width: 80px;
       }
-      .expression-center {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-      }
-      .expression-center__icon {
-        font-size: clamp(56px, 10vw, 80px);
-      }
-      .expression-center__label {
-        margin: 0;
-        font-weight: 700;
-        font-size: 14px;
-      }
-      .expression-overlay__footer {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-      }
-      .expression-overlay__countdown {
-        margin: 0;
-        min-width: 60px;
-        font-size: 15px;
-        color: #dbe8ff;
-        text-align: center;
-      }
-      .reroll-button {
-        width: min(92vw, 360px);
-        padding: 14px;
-        border-radius: 16px;
-        border: none;
-        background: linear-gradient(120deg, #ff8f70, #ff3d54);
-        color: #fff;
-        font-size: 15px;
-        font-weight: 700;
-        cursor: pointer;
-        box-shadow: 0 12px 24px rgba(255, 61, 84, 0.3);
-      }
-      video,
-      canvas {
-        width: min(92vw, 480px);
-        height: auto;
-        border: 1px solid #ddd;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #f6f8ff 0%, #eef3ff 100%);
-        box-shadow: 0 10px 30px rgba(24, 71, 196, 0.08);
-      }
-      .capture-canvas {
+      .pocket-house::before {
+        content: "";
         display: block;
-      }
-      .capture-canvas.is-hidden {
-        display: none;
-      }
-      .capture-slot {
-        position: relative;
-        width: min(92vw, 480px);
-        min-height: 260px;
-        margin: 0 auto;
-        background: #fff;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(24, 71, 196, 0.08);
-        overflow: hidden;
-      }
-      .capture-slot.is-hidden {
-        display: none;
-      }
-      .capture-slot__inner {
-        position: relative;
         width: 100%;
-        min-height: 260px;
+        height: 52px;
+        border-radius: 18px;
+        background: var(--color-brand-secondary);
+        box-shadow: 0 16px 30px rgba(255, 216, 168, 0.4);
+      }
+      .pocket-house::after {
+        content: "";
+        position: absolute;
+        top: -26px;
+        left: 10px;
+        width: 60px;
+        height: 32px;
+        background: var(--color-brand-mint);
+        clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+      }
+      .pocket-tree {
+        width: 60px;
+      }
+      .pocket-tree::before {
+        content: "";
+        position: absolute;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: var(--color-tiny-tree-green);
+        box-shadow: 0 12px 24px rgba(182, 232, 176, 0.5);
+      }
+      .pocket-tree::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 24px;
+        width: 12px;
+        height: 26px;
+        border-radius: 6px;
+        background: #96785a;
+      }
+      .scene-stack {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        min-height: 100vh;
+        padding: 24px 18px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .scene {
+        display: none;
+        min-height: calc(100vh - 64px);
+        padding: 0;
+        margin: 0;
+        border: none;
+        background: transparent;
+      }
+      .scene.is-active {
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-direction: column;
-        gap: 10px;
       }
-      .capture-canvas {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        opacity: 0;
-        pointer-events: none;
-      }
-      .preview-grid {
-        display: none;
-        width: 100%;
-        gap: 8px;
-        padding: 8px;
-        box-sizing: border-box;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      }
-      .preview-grid.is-visible {
-        display: grid;
-      }
-      .preview-item {
+      .scene-card {
         position: relative;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 10px;
-        overflow: hidden;
-        background: #f8f9fb;
-        aspect-ratio: 4 / 5;
+        width: 100%;
+        border-radius: 32px;
+        padding: 32px 24px 36px;
+        background: var(--color-card-bg);
+        border: 1px solid var(--color-card-border);
+        box-shadow:
+          0 30px 60px rgba(94, 64, 128, 0.25),
+          inset 0 0 60px rgba(255, 255, 255, 0.35);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
       }
-      .preview-item img {
+      .title {
+        font-size: clamp(24px, 6vw, 28px);
+        font-weight: 700;
+        line-height: 1.3;
+        margin: 0;
+      }
+      .subtitle {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--color-text-sub);
+        margin: 0;
+      }
+      .body-text {
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--color-text-sub);
+        margin: 0;
+      }
+      .caption {
+        font-size: 12px;
+        color: var(--color-text-muted);
+        margin: 0;
+        text-align: center;
+      }
+      .btn-primary,
+      .btn-secondary,
+      .ghost-btn {
+        border: none;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 16px;
+        padding: 14px 18px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .btn-primary {
+        background: linear-gradient(120deg, var(--color-brand-primary), var(--color-brand-accent));
+        color: #2f1b33;
+        box-shadow: 0 15px 35px rgba(255, 185, 204, 0.45);
+      }
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.7);
+        color: var(--color-text-main);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+      }
+      .btn-primary:disabled,
+      .btn-secondary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .scene-intro .scene-card {
+        text-align: center;
+        padding-top: 48px;
+        padding-bottom: 48px;
+      }
+      .camera-frame {
+        position: relative;
+        border-radius: 28px;
+        overflow: hidden;
+        background: rgba(5, 4, 27, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        aspect-ratio: 3 / 4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .camera-preview {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        display: block;
+        background: #020112;
       }
-      .waiting-panel {
-        position: fixed;
+      .camera-preview.is-mirrored {
+        transform: scaleX(-1);
+      }
+      #capture-flash {
+        position: absolute;
         inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 12px;
-        background: rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(6px);
-        pointer-events: auto;
-        z-index: 50;
-      }
-      .waiting-panel.is-active {
-        display: flex;
-      }
-      .waiting-card {
-        width: min(420px, 92vw);
-        border-radius: 14px;
-        background: linear-gradient(145deg, #0d1b2a, #1b2f4f);
-        color: #f5f7ff;
-        padding: 18px;
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-        display: grid;
-        gap: 10px;
-        text-align: left;
-      }
-      .waiting-card__title {
-        font-weight: 700;
-        font-size: 15px;
-        letter-spacing: 0.2px;
-      }
-      .waiting-card__desc {
-        font-size: 13px;
-        color: #d6e2ff;
-        line-height: 1.5;
-      }
-      .waiting-card__thumb {
-        width: 100%;
-        border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.08));
-        overflow: hidden;
-        max-height: 320px;
-      }
-      .waiting-card__thumb img {
-        display: block;
-        width: 100%;
-        height: auto;
-        object-fit: contain;
-        background: #0b1524;
-        max-height: 320px;
-      }
-      .waiting-card__timer {
-        font-size: 13px;
-        color: #c8dcff;
-        font-weight: 600;
-      }
-      .waiting-card__pulse {
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #6ec8ff;
-        box-shadow: 0 0 0 0 rgba(110, 200, 255, 0.6);
-        animation: pulseDot 1.4s ease-in-out infinite;
-      }
-      .waiting-card__close {
-        margin-top: 6px;
-        align-self: flex-end;
-        padding: 10px 14px;
-        border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        background: rgba(255, 255, 255, 0.08);
-        color: #f5f7ff;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.18s ease;
-      }
-      .waiting-card__close:hover {
-        background: rgba(255, 255, 255, 0.16);
-        transform: translateY(-1px);
-      }
-      .waiting-panel.is-done .waiting-card {
-        background: linear-gradient(145deg, #0c2f1f, #0f5a30);
-      }
-      .waiting-panel.is-done .waiting-card__desc {
-        color: #d8ffe7;
-      }
-      .waiting-panel.is-done .waiting-card__pulse {
-        background: #68ffb3;
-        box-shadow: 0 0 0 0 rgba(104, 255, 179, 0.45);
-        animation: none;
-      }
-      .waiting-panel.is-failed .waiting-card {
-        background: linear-gradient(145deg, #3a0f1f, #5d1630);
-      }
-      .waiting-panel.is-failed .waiting-card__desc {
-        color: #ffd7df;
-      }
-      .waiting-panel.is-failed .waiting-card__pulse {
-        background: #ff8ba7;
-        box-shadow: 0 0 0 0 rgba(255, 139, 167, 0.4);
-        animation: pulseDot 1.1s ease-in-out infinite;
-      }
-      .canvas--send {
-        animation: sendOut 0.9s ease forwards;
-        transform-origin: center;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
-      }
-      .send-fly {
-        position: absolute;
+        background: rgba(255, 255, 255, 0.9);
+        opacity: 0;
         pointer-events: none;
-        animation: flyOut 0.8s ease-in forwards;
-        border-radius: 12px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
-        z-index: 50;
+        transition: opacity 0.2s ease;
       }
-      @keyframes sendOut {
-        0% {
-          opacity: 1;
-          transform: scale(1) translateY(0);
-        }
-        50% {
-          opacity: 0.6;
-          transform: scale(0.95) translateY(-10px);
-        }
-        100% {
-          opacity: 0;
-          transform: scale(0.85) translateY(-40px);
-        }
+      #capture-flash.is-visible {
+        opacity: 1;
       }
-      @keyframes flyOut {
-        0% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-        60% {
-          opacity: 0.8;
-          transform: translate(-6px, -40px) scale(0.93) rotate(-1deg);
-        }
-        100% {
-          opacity: 0;
-          transform: translate(12px, -120px) scale(0.78) rotate(3deg);
-        }
-      }
-      .controls {
+      .capture-controls {
         display: flex;
         justify-content: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        width: 100%;
-        max-width: 480px;
-        padding: 0 16px;
+        gap: 16px;
+        align-items: center;
       }
-      .camera-switch-btn {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        border: none;
-        background: transparent;
-        font-size: 24px;
-        color: #fff;
-        cursor: pointer;
+      .ghost-btn {
+        background: rgba(255, 255, 255, 0.65);
+        color: var(--color-text-main);
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        min-width: 88px;
       }
-      button {
-        flex: 1 0 140px;
-        padding: 12px 16px;
-        border-radius: 10px;
-        border: 1px solid #ccc;
-        background: #fff;
-        font-size: 15px;
-        font-weight: 600;
-        cursor: pointer;
+      .capture-btn {
+        width: 88px;
+        height: 88px;
+        border-radius: 50%;
+        border: 6px solid rgba(255, 255, 255, 0.8);
+        background: linear-gradient(180deg, var(--color-brand-primary), var(--color-brand-secondary));
+        box-shadow: 0 18px 36px rgba(255, 185, 204, 0.35);
       }
-      button:disabled {
-        opacity: 0.5;
+      .capture-btn:disabled {
+        opacity: 0.6;
         cursor: not-allowed;
       }
-      .hint {
-        color: #666;
-        font-size: 13px;
-        margin-top: 8px;
-        line-height: 1.4;
-        padding: 0 16px;
-      }
-      .ws-box {
-        position: fixed;
-        bottom: 70px;
-        right: 16px;
-        width: min(280px, 80vw);
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 10px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-        font-size: 13px;
-        text-align: left;
-        backdrop-filter: blur(4px);
-      }
-      .ws-box__header {
-        padding: 8px 12px;
-        font-weight: 600;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      .capture-status {
+        border-radius: 18px;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.9);
+        font-size: 14px;
         display: flex;
         justify-content: space-between;
-        align-items: center;
         gap: 8px;
+        align-items: center;
+        color: var(--color-text-main);
+        border: 1px solid rgba(255, 255, 255, 0.4);
       }
-      .ws-box__body {
-        max-height: 150px;
-        overflow-y: auto;
-        padding: 8px 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+      .capture-status small {
+        color: var(--color-text-muted);
       }
-      .ws-box__empty {
-        color: #999;
-        font-style: italic;
+      .capture-status[data-variant="success"] {
+        background: rgba(207, 255, 229, 0.95);
+        color: #155648;
       }
-      .ws-message {
-        padding: 8px;
-        border-radius: 8px;
-        background: #f3f7ff;
-        border: 1px solid rgba(62, 124, 255, 0.2);
-        word-break: break-word;
-        line-height: 1.3;
+      .capture-status[data-variant="error"] {
+        background: rgba(255, 207, 214, 0.95);
+        color: #7c1e33;
       }
-      .ws-message__time {
-        font-size: 11px;
-        color: #6c7c9f;
-        display: block;
-        margin-bottom: 4px;
+      .generation-orb {
+        width: 180px;
+        height: 180px;
+        border-radius: 50%;
+        margin: 0 auto;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.85), rgba(174, 230, 255, 0.3));
+        box-shadow:
+          0 0 80px rgba(174, 230, 255, 0.6),
+          inset 0 0 60px rgba(255, 255, 255, 0.5);
+        position: relative;
+        overflow: hidden;
       }
-      .ws-status {
+      .generation-orb::after {
+        content: "";
         position: absolute;
-        right: 16px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 14px;
-        height: 14px;
+        inset: 15%;
         border-radius: 50%;
-        background: #f44336;
-        box-shadow: 0 0 6px rgba(244, 67, 54, 0.4);
-        opacity: 0.9;
-        transition:
-          opacity 0.2s ease,
-          background-color 0.2s ease,
-          box-shadow 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        animation: pulseGlow 4s ease-in-out infinite;
       }
-      .ws-status.is-connecting {
-        background: #ff9800;
-        box-shadow: 0 0 6px rgba(255, 152, 0, 0.4);
-      }
-      .ws-status.is-connected {
-        background: #00c853;
-        box-shadow: 0 0 6px rgba(0, 200, 83, 0.6);
-      }
-      .ws-box {
-        position: fixed;
-        bottom: 16px;
-        right: 16px;
-        width: min(280px, 80vw);
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 10px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-        font-size: 13px;
-        text-align: left;
-        backdrop-filter: blur(4px);
-        z-index: 20;
-      }
-      .ws-box.is-hidden {
-        display: none;
-      }
-      .ws-toggle {
-        position: fixed;
-        bottom: 16px;
-        right: 16px;
-        padding: 9px 12px;
-        border-radius: 12px;
-        border: 1px solid rgba(0, 0, 0, 0.12);
-        background: linear-gradient(135deg, #ffffff 0%, #f3f5fb 100%);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-        font-weight: 700;
-        font-size: 12px;
-        cursor: pointer;
-        z-index: 21;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 36px;
-      }
-      .ws-toggle.is-hidden {
-        display: none;
-      }
-      .ws-toggle__status {
-        padding: 0;
-        border-radius: 0;
-        background: transparent;
-        color: inherit;
-        font-weight: inherit;
-        font-size: inherit;
-      }
-      .ws-box__close {
-        margin-left: auto;
-        padding: 3px 8px;
-        border-radius: 8px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        background: #f5f7ff;
-        font-size: 11px;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        height: 28px;
-        flex: 0 0 auto;
-      }
-      .upload-overlay {
-        position: fixed;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: rgba(13, 17, 23, 0.35);
-        backdrop-filter: blur(10px);
-        z-index: 100;
-      }
-      .upload-overlay.is-active {
-        display: flex;
-      }
-      .upload-card {
-        padding: 24px 28px;
-        border-radius: 16px;
-        background: linear-gradient(135deg, #0d1b2a, #172a46);
-        color: #f5f7ff;
-        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
-        display: grid;
-        gap: 12px;
-        min-width: min(320px, 90vw);
-      }
-      .upload-card__title {
-        font-size: 16px;
-        font-weight: 700;
-        letter-spacing: 0.2px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .upload-card__spinner {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        border: 4px solid rgba(255, 255, 255, 0.15);
-        border-top-color: #6ec8ff;
-        animation: spin 1s linear infinite, pulse 1.6s ease-in-out infinite;
-        justify-self: center;
-      }
-      .upload-card__desc {
-        font-size: 14px;
-        color: #d6e2ff;
-        line-height: 1.5;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-      @keyframes pulse {
+      @keyframes pulseGlow {
         0% {
-          box-shadow: 0 0 0 0 rgba(110, 200, 255, 0.4);
-        }
-        100% {
-          box-shadow: 0 0 0 22px rgba(110, 200, 255, 0);
-        }
-      }
-      @keyframes pulseDot {
-        0% {
-          transform: scale(0.85);
-          box-shadow: 0 0 0 0 rgba(110, 200, 255, 0.5);
+          transform: scale(0.95);
+          opacity: 0.6;
         }
         50% {
           transform: scale(1.05);
-          box-shadow: 0 0 0 10px rgba(110, 200, 255, 0);
+          opacity: 0.95;
         }
         100% {
-          transform: scale(0.85);
-          box-shadow: 0 0 0 0 rgba(110, 200, 255, 0);
+          transform: scale(0.95);
+          opacity: 0.6;
+        }
+      }
+      .progress-panel {
+        background: rgba(255, 255, 255, 0.85);
+        border-radius: 20px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+      }
+      .progress-bar {
+        width: 100%;
+        height: 14px;
+        border-radius: 999px;
+        background: rgba(47, 42, 59, 0.08);
+        overflow: hidden;
+      }
+      .progress-bar-fill {
+        display: block;
+        height: 100%;
+        width: 0%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--color-brand-primary), var(--color-brand-accent));
+        transition: width 0.3s ease;
+      }
+      .progress-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        color: var(--color-text-main);
+      }
+      .result-card {
+        gap: 20px;
+      }
+      .result-media {
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px dashed rgba(47, 42, 59, 0.2);
+        padding: 12px;
+      }
+      .result-image-wrapper {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      #result-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: inherit;
+        display: none;
+      }
+      #result-image.is-visible {
+        display: block;
+      }
+      #result-image-placeholder {
+        margin: 0;
+        font-size: 14px;
+        color: var(--color-text-sub);
+        text-align: center;
+      }
+      .emotion-field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--color-text-main);
+      }
+      .emotion-field textarea {
+        border: 1px solid rgba(47, 42, 59, 0.15);
+        border-radius: 20px;
+        padding: 14px;
+        font: inherit;
+        resize: none;
+        min-height: 110px;
+        background: rgba(255, 255, 255, 0.9);
+      }
+      .emotion-field textarea:focus {
+        outline: 2px solid rgba(255, 185, 204, 0.4);
+      }
+      .result-actions {
+        display: flex;
+        gap: 12px;
+      }
+      .result-toast {
+        font-size: 14px;
+        margin: 0;
+        color: var(--color-text-sub);
+        min-height: 18px;
+      }
+      canvas {
+        display: none;
+      }
+      @media (max-width: 420px) {
+        .scene-card {
+          padding: 28px 20px 32px;
+        }
+        .camera-frame {
+          border-radius: 22px;
         }
       }
     </style>
   </head>
   <body>
-    <header>
-      📸 HTML + TS 카메라 테스트
-      <span id="ws-status" class="ws-status" aria-label="WebSocket 상태" title="WebSocket 상태"></span>
-    </header>
-    <main>
-      <section id="splash-screen" class="splash">
-        <p class="splash__title">GAME START</p>
-        <p class="splash__desc">
-          버튼을 누르면 카메라가 자동으로 켜지고,<br />
-          3가지 표정 중 하나가 랜덤으로 지정됩니다.
-        </p>
-        <button id="open" class="splash__start">GAME START</button>
-      </section>
-      <section id="camera-stage" class="camera-stage is-hidden" aria-live="polite">
-        <div class="camera-stage__video">
-          <video id="video" playsinline autoplay muted></video>
-          <button
-            id="switch"
-            type="button"
-            class="camera-switch-btn"
-            aria-label="카메라 전환"
-            title="카메라 전환"
-          >
-            🔄
-          </button>
-          <div id="timeout-overlay" class="timeout-overlay">
-            <div class="timeout-overlay__card">
-              <p class="timeout-overlay__title">시간 초과!</p>
-              <p class="timeout-overlay__desc">다시 뽑기 버튼을 눌러 새로운 표정을 받아보세요.</p>
-              <button id="timeout-retry" type="button" class="timeout-overlay__action">다시 찍기</button>
-            </div>
-          </div>
-          <div id="expression-overlay" class="expression-overlay">
-            <div class="expression-overlay__body">
-              <div class="expression-center">
-                <div id="expression-icon" class="expression-center__icon" aria-hidden="true">🎲</div>
-                <p id="expression-label" class="expression-center__label">표정을 뽑아보세요.</p>
-              </div>
-              <div class="expression-overlay__footer">
-                <p id="capture-countdown" class="expression-overlay__countdown"></p>
-              </div>
-            </div>
-          </div>
+    <div class="app-root">
+      <div class="background-layer" aria-hidden="true">
+        <div class="glow-orb glow-orb-pink" style="top:-10%;left:-20%;width:320px;height:320px;"></div>
+        <div class="glow-orb glow-orb-blue" style="top:20%;right:-10%;width:260px;height:260px;"></div>
+        <div class="glow-orb glow-orb-mint" style="bottom:-10%;left:10%;width:280px;height:280px;"></div>
+        <div class="particles">
+          <span class="particle particle-pink" style="top:10%;left:18%;animation-delay:0s;"></span>
+          <span class="particle particle-blue" style="top:25%;right:12%;animation-delay:1s;"></span>
+          <span class="particle particle-mint" style="top:40%;left:8%;animation-delay:2s;"></span>
+          <span class="particle particle-blue" style="top:55%;right:25%;animation-delay:1.5s;"></span>
+          <span class="particle particle-pink" style="top:70%;left:30%;animation-delay:0.5s;"></span>
+          <span class="particle particle-mint" style="top:85%;right:15%;animation-delay:2.5s;"></span>
         </div>
-        <div class="controls">
-          <button id="snap" disabled>사진 찍기</button>
-          <button id="expression-reroll" type="button" class="camera-tool camera-tool--reroll">
-            다시 뽑기
-          </button>
+        <div class="pocket-objects">
+          <div class="pocket-planet floating-slow"></div>
+          <div class="pocket-house floating-fast"></div>
+          <div class="pocket-tree floating-slow"></div>
         </div>
-        <div id="capture-slot" class="capture-slot">
-          <div class="capture-slot__inner">
-            <canvas id="canvas" class="capture-canvas" width="720" height="960"></canvas>
-            <div id="preview-grid" class="preview-grid" aria-live="polite"></div>
-          </div>
-        </div>
-        <div class="controls">
-          <button id="save">이미지 생성</button>
-          <button id="stop" disabled>카메라 종료</button>
-        </div>
-        <div class="controls">
-          <button id="upload-files">사진 올리기 (여러장)</button>
-          <input id="file-picker" type="file" accept="image/*" multiple style="display:none" />
-        </div>
-        <p class="hint">
-          iOS Safari는 HTTPS 또는 localhost에서만 카메라 접근이 가능합니다.<br />
-          권한 팝업이 보이면 반드시 "허용"을 선택하세요.
-        </p>
-      </section>
-    </main>
-    <section id="ws-box" class="ws-box is-hidden" aria-live="polite">
-      <div class="ws-box__header">
-        <span>Push 메시지</span>
-        <small id="ws-counter">0</small>
-        <button id="ws-close" type="button" class="ws-box__close">닫기</button>
       </div>
-      <div id="ws-messages" class="ws-box__body">
-        <div class="ws-box__empty">아직 받은 메시지가 없습니다.</div>
-      </div>
-    </section>
-    <button id="ws-toggle" class="ws-toggle" type="button" aria-expanded="false" aria-controls="ws-box">
-      메시지 열기
-    </button>
-    <div id="waiting-panel" class="waiting-panel" aria-live="polite">
-      <div class="waiting-card">
-        <div id="waiting-title" class="waiting-card__title">서버 응답을 기다리는 중</div>
-        <div id="waiting-desc" class="waiting-card__desc">
-          이미지를 전송했습니다. 결과가 도착하면 이곳에 표시됩니다.
-        </div>
-        <div class="waiting-card__thumb" aria-hidden="true">
-          <img id="waiting-image" alt="처리된 이미지 미리보기" />
-        </div>
-        <div id="waiting-timer" class="waiting-card__timer"></div>
-        <div id="waiting-pulse" class="waiting-card__pulse" aria-hidden="true"></div>
-        <button id="waiting-close" type="button" class="waiting-card__close" style="display:none;">확인</button>
+      <div class="scene-stack" data-app-root>
+        <section class="scene scene-intro is-active" data-scene="intro" aria-live="polite">
+          <div class="scene-card intro-card">
+            <p class="subtitle">Pocket Mood World</p>
+            <h1 class="title">오늘의 감정으로 태어나는 아기 펫</h1>
+            <p class="body-text">사진과 감정으로 나만의 작은 감정 세계를 열어보세요.</p>
+            <button class="btn-primary" id="cta-start">펫 만들기 시작하기</button>
+            <p class="caption">Powered by AWS </p>
+          </div>
+        </section>
+
+        <section class="scene scene-capture" data-scene="capture" aria-live="polite">
+          <div class="scene-card capture-card">
+            <div>
+              <p class="subtitle">사진 찍기</p>
+              <h2 class="title">Pocket Mood World에 들어갈 너의 모습을 보여줘</h2>
+              <p class="body-text">안경, 옷, 들고 있는 물건까지 잘 보이게 촬영해주세요.</p>
+            </div>
+            <div class="camera-frame">
+              <video
+                id="camera-preview"
+                class="camera-preview"
+                playsinline
+                autoplay
+                muted
+              ></video>
+              <div id="capture-flash" aria-hidden="true"></div>
+            </div>
+            <div class="capture-controls">
+              <button class="ghost-btn" id="capture-back" type="button">뒤로</button>
+              <button class="capture-btn" id="capture-shutter" type="button" aria-label="사진 찍기"></button>
+              <button class="ghost-btn" id="capture-switch" type="button">카메라 전환</button>
+            </div>
+            <div class="capture-status" id="capture-status" data-variant="info">
+              <span id="status-message">촬영 준비가 완료되면 여기서 안내해드릴게요.</span>
+              <small id="status-meta"></small>
+            </div>
+            <canvas id="capture-canvas"></canvas>
+          </div>
+        </section>
+
+        <section class="scene scene-loading" data-scene="loading" aria-live="polite">
+          <div class="scene-card loading-card">
+            <p class="subtitle">Pocket Mood World</p>
+            <h2 class="title">아기 펫을 만들고 있어요</h2>
+            <p class="body-text">네 감정을 읽고 Pocket Mood World에서 아기 펫을 준비 중이에요.</p>
+            <div class="generation-orb"></div>
+            <div class="progress-panel">
+              <div class="progress-bar">
+                <span class="progress-bar-fill" id="loading-progress-fill"></span>
+              </div>
+              <div class="progress-meta">
+                <span id="loading-progress-text">펫 생성 진행 중… 0%</span>
+                <span id="loading-timer-text">00:00</span>
+              </div>
+              <p class="body-text" id="loading-status-message">서버에서 펫을 준비 중이에요.</p>
+            </div>
+            <button class="btn-secondary" id="loading-retry" type="button" hidden>다시 시도</button>
+          </div>
+        </section>
+
+        <section class="scene scene-result" data-scene="result" aria-live="polite">
+          <div class="scene-card result-card">
+            <div>
+              <p class="subtitle">Pocket Mood World</p>
+              <h2 class="title">아기 펫이 태어났어요!</h2>
+              <p class="body-text">오늘의 너를 닮은 아기 펫이야. 감정을 남겨보세요.</p>
+            </div>
+            <div class="result-media">
+              <div class="result-image-wrapper">
+                <p class="body-text" id="result-image-placeholder">생성된 이미지를 가져오는 중이에요.</p>
+                <img id="result-image" alt="생성된 펫 이미지" />
+              </div>
+              <p class="caption" id="result-image-meta"></p>
+            </div>
+            <label class="emotion-field">
+              <span>오늘 너의 감정은 어때?</span>
+              <textarea
+                id="emotion-input"
+                placeholder="예: 조금 피곤하지만 설레는 하루였어"
+                maxlength="300"
+              ></textarea>
+            </label>
+            <div class="result-actions">
+              <button class="btn-secondary" id="result-retry" type="button">다시 만들기</button>
+              <button class="btn-primary" id="result-save" type="button">저장하기</button>
+            </div>
+            <p class="result-toast" id="result-toast"></p>
+          </div>
+        </section>
       </div>
     </div>
-    <div id="upload-overlay" class="upload-overlay" aria-live="polite">
-      <div class="upload-card">
-        <div class="upload-card__title">이미지 전송 중</div>
-        <div class="upload-card__spinner" aria-hidden="true"></div>
-        <div class="upload-card__desc">서버 응답을 기다리는 중입니다. 잠시만 기다려주세요.</div>
-      </div>
-    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
