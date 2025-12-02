@@ -10,7 +10,7 @@ const DEMO_MODE =
   ["1", "true"].includes((queryParams.get("demo") || "").toLowerCase()) ||
   queryParams.get("mode") === "demo";
 const PRESIGN_ENDPOINT =
-  "https://jxvrngbw4b.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
+  "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/get-input-url";
 const STEP_FUNCTION_ENDPOINT =
   "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/make-image";
 const PET_STATUS_ENDPOINT = "/api/pet-generation"; // TODO: actual API에 맞춰 교체
@@ -105,6 +105,11 @@ const emotionInput = document.getElementById("emotion-input") as HTMLTextAreaEle
 const resultRetryBtn = document.getElementById("result-retry") as HTMLButtonElement | null;
 const resultSaveBtn = document.getElementById("result-save") as HTMLButtonElement | null;
 const resultToast = document.getElementById("result-toast") as HTMLParagraphElement | null;
+const weeklyEvolveBtn = document.getElementById("btn-weekly-evolve") as HTMLButtonElement | null;
+const evolveHomeBtn = document.getElementById("btn-evolved-home") as HTMLButtonElement | null;
+const evolveProgressBar = document.getElementById("evolve-progress") as HTMLDivElement | null;
+const evolvePercentLabel = document.getElementById("evolve-percent") as HTMLSpanElement | null;
+const evolveStatusLabel = document.getElementById("evolve-status") as HTMLParagraphElement | null;
 
 function init() {
   if (!root) return;
@@ -123,6 +128,10 @@ function init() {
   loadingRetryBtn?.addEventListener("click", handleLoadingRetry);
   resultRetryBtn?.addEventListener("click", handleResultRetry);
   resultSaveBtn?.addEventListener("click", handleEmotionSave);
+  weeklyEvolveBtn?.addEventListener("click", startMegaEvolutionSequence);
+  evolveHomeBtn?.addEventListener("click", () => {
+    showScene("intro");
+  });
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -278,6 +287,7 @@ async function handleCapture() {
 
     const fileName = buildFileName();
     const presignedUrl = await fetchPresignedUrl(fileName, UPLOAD_TYPE);
+    console.log("[presign]", presignedUrl);
     await uploadToPresignedUrl(presignedUrl, blob, UPLOAD_TYPE);
     const location = extractS3Location(presignedUrl);
     state.lastUploadKey = location.key;
@@ -304,6 +314,7 @@ async function handleCapture() {
     const message =
       error instanceof Error ? error.message : "알 수 없는 오류가 발생했어요. 다시 시도해주세요.";
     setCaptureStatus(message, "error");
+    alert(`촬영/업로드 중 문제가 발생했습니다:\n${message}`);
   } finally {
     setUploading(false);
   }
@@ -595,6 +606,7 @@ async function handleEmotionSave() {
     });
     showResultToast("저장 완료! 고마워요 💫");
     if (emotionInput) emotionInput.value = "";
+    activateStandaloneScene("weekly");
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "저장에 실패했습니다. 잠시 후 다시 시도해주세요.";
@@ -688,7 +700,10 @@ async function fetchPresignedUrl(fileName: string, contentType: string): Promise
   url.searchParams.set("key", fileName);
   url.searchParams.set("contentType", contentType);
 
-  const response = await fetch(url.toString());
+  console.log("[presign] request url:", url.toString());
+  const response = await fetch(url.toString()).catch((error) => {
+    throw new Error(`[presign] 네트워크 오류: ${(error as Error).message || String(error)}`);
+  });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw new Error(`업로드 URL 발급 실패 (HTTP ${response.status}) ${text}`);
@@ -699,19 +714,26 @@ async function fetchPresignedUrl(fileName: string, contentType: string): Promise
   if (!presignedUrl) {
     throw new Error("업로드 URL을 찾을 수 없습니다.");
   }
+  console.log("[presign] received url:", presignedUrl);
   return presignedUrl;
 }
 
 async function uploadToPresignedUrl(url: string, blob: Blob, contentType: string) {
-  const response = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body: blob,
+    });
+  } catch (error) {
+    throw new Error(`[upload] 네트워크 오류: ${(error as Error).message || String(error)}`);
+  }
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw new Error(`S3 업로드 실패 (HTTP ${response.status}) ${text}`);
   }
+  console.log("[upload] success:", url);
 }
 
 function extractS3Location(presignedUrl: string): S3Location {
@@ -781,6 +803,55 @@ function setCaptureStatus(message: string, variant: CaptureStatusVariant = "info
 
 function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9./_-]/g, "_");
+}
+
+type ExtraScene = "weekly" | "evolve" | "evolved";
+
+function activateStandaloneScene(target: Scene | ExtraScene) {
+  document.querySelectorAll<HTMLElement>(".scene").forEach((section) => {
+    const sceneName = section.dataset.scene;
+    section.classList.toggle("is-active", sceneName === target);
+  });
+}
+
+let evolveTimer: number | null = null;
+
+function clearEvolveTimer() {
+  if (evolveTimer !== null) {
+    window.clearInterval(evolveTimer);
+    evolveTimer = null;
+  }
+}
+
+function startMegaEvolutionSequence() {
+  if (!evolveProgressBar || !evolvePercentLabel || !evolveStatusLabel) {
+    activateStandaloneScene("evolve");
+    return;
+  }
+  activateStandaloneScene("evolve");
+  clearEvolveTimer();
+  let progress = 0;
+  evolveProgressBar.style.width = "0%";
+  evolvePercentLabel.textContent = "0%";
+  evolveStatusLabel.textContent = "SUNNY 프롬프트 적용 중…";
+
+  evolveTimer = window.setInterval(() => {
+    progress = Math.min(100, progress + 20);
+    evolveProgressBar.style.width = `${progress}%`;
+    evolvePercentLabel.textContent = `${progress}%`;
+
+    if (progress === 40) {
+      evolveStatusLabel.textContent = "SUNNY 프롬프트 생성 중…";
+    } else if (progress === 70) {
+      evolveStatusLabel.textContent = "Nano Banana 이미지 생성 요청…";
+    }
+
+    if (progress >= 100) {
+      clearEvolveTimer();
+      evolveStatusLabel.textContent = "SUNNY 메가 진화 완료!";
+      window.setTimeout(() => activateStandaloneScene("evolved"), 500);
+    }
+  }, 400);
 }
 
 init();

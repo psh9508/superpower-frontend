@@ -3,33 +3,154 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Emotion Baby Pet · Pocket Mood World</title>
+    <title>Emotion Pet · Pocket Emotion World</title>
     <style>
+      /* ================= 공통 기본 & 감정 토큰 ================= */
+
       :root {
-        --color-brand-primary: #ffb9cc;
-        --color-brand-secondary: #ffd8a8;
-        --color-brand-accent: #aee6ff;
-        --color-brand-mint: #cfffe5;
-        --color-planet-lavender: #d6c7ff;
-        --color-tiny-tree-green: #b6e8b0;
-        --color-sunset-orange: #ffbc7d;
+        /* 공통 브랜드 / 배경 */
         --color-bg-top: #fbefff;
         --color-bg-middle: #fdf7ff;
         --color-bg-bottom: #ffe9f3;
+
         --color-text-main: #2f2a3b;
         --color-text-sub: #7c748c;
         --color-text-muted: #b0a7c0;
-        --color-card-bg: rgba(255, 255, 255, 0.88);
-        --color-card-border: rgba(255, 255, 255, 0.35);
-        font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+
+        --color-card-bg: rgba(255, 255, 255, 0.9);
+        --color-card-border: rgba(255, 255, 255, 0.4);
+
+        /* 감정 토큰 기본값 (테마 없을 때) */
+        --emotion-main: #ffb9cc;
+        --emotion-sub: #ffd8a8;
+        --emotion-bg-soft: rgba(255, 255, 255, 0.96);
+        --emotion-chip-bg: rgba(255, 255, 255, 0.9);
+        --emotion-border-soft: rgba(255, 185, 204, 0.7);
+
+        font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Noto Sans KR", system-ui,
+          sans-serif;
         color: var(--color-text-main);
         background-color: var(--color-bg-middle);
       }
+
+      /* ---- 12 Emotion Theme 클래스 ---- */
+
+      /* SUNNY (기쁨) */
+      .theme-SUNNY {
+        --emotion-main: #fbbf24;
+        --emotion-sub: #fed7aa;
+        --emotion-bg-soft: #fff7d6;
+        --emotion-chip-bg: rgba(254, 243, 199, 0.98);
+        --emotion-border-soft: rgba(251, 191, 36, 0.7);
+      }
+
+      /* CALM (평온) */
+      .theme-CALM {
+        --emotion-main: #38bdf8;
+        --emotion-sub: #bae6fd;
+        --emotion-bg-soft: #ecfeff;
+        --emotion-chip-bg: rgba(224, 242, 254, 0.98);
+        --emotion-border-soft: rgba(56, 189, 248, 0.7);
+      }
+
+      /* WARM (애정) */
+      .theme-WARM {
+        --emotion-main: #fb7185;
+        --emotion-sub: #fecaca;
+        --emotion-bg-soft: #ffe4e6;
+        --emotion-chip-bg: rgba(254, 226, 226, 0.98);
+        --emotion-border-soft: rgba(251, 113, 133, 0.7);
+      }
+
+      /* SPARK (활력) */
+      .theme-SPARK {
+        --emotion-main: #f97316;
+        --emotion-sub: #fed7aa;
+        --emotion-bg-soft: #fff7ed;
+        --emotion-chip-bg: rgba(255, 237, 213, 0.98);
+        --emotion-border-soft: rgba(249, 115, 22, 0.7);
+      }
+
+      /* CLOUDY (우울) */
+      .theme-CLOUDY {
+        --emotion-main: #64748b;
+        --emotion-sub: #e2e8f0;
+        --emotion-bg-soft: #edf2f7;
+        --emotion-chip-bg: rgba(226, 232, 240, 0.98);
+        --emotion-border-soft: rgba(100, 116, 139, 0.7);
+      }
+
+      /* STORM (분노) */
+      .theme-STORM {
+        --emotion-main: #f97373;
+        --emotion-sub: #a855f7;
+        --emotion-bg-soft: #fee2e2;
+        --emotion-chip-bg: rgba(254, 226, 226, 0.98);
+        --emotion-border-soft: rgba(248, 113, 113, 0.7);
+      }
+
+      /* FOG (불안) */
+      .theme-FOG {
+        --emotion-main: #22c1c3;
+        --emotion-sub: #a5b4fc;
+        --emotion-bg-soft: #e0f2fe;
+        --emotion-chip-bg: rgba(219, 234, 254, 0.98);
+        --emotion-border-soft: rgba(34, 193, 195, 0.7);
+      }
+
+      /* FOCUS (몰입) */
+      .theme-FOCUS {
+        --emotion-main: #6366f1;
+        --emotion-sub: #c7d2fe;
+        --emotion-bg-soft: #e0ecff;
+        --emotion-chip-bg: rgba(224, 231, 255, 0.98);
+        --emotion-border-soft: rgba(99, 102, 241, 0.7);
+      }
+
+      /* DREAM (창의) */
+      .theme-DREAM {
+        --emotion-main: #c4b5fd;
+        --emotion-sub: #f9a8d4;
+        --emotion-bg-soft: #f5e9ff;
+        --emotion-chip-bg: rgba(250, 232, 255, 0.98);
+        --emotion-border-soft: rgba(196, 181, 253, 0.7);
+      }
+
+      /* GROUND (일상 안정) */
+      .theme-GROUND {
+        --emotion-main: #4ade80;
+        --emotion-sub: #bbf7d0;
+        --emotion-bg-soft: #ecfdf5;
+        --emotion-chip-bg: rgba(220, 252, 231, 0.98);
+        --emotion-border-soft: rgba(74, 222, 128, 0.7);
+      }
+
+      /* FROST (무감·번아웃) */
+      .theme-FROST {
+        --emotion-main: #7dd3fc;
+        --emotion-sub: #e0f2fe;
+        --emotion-bg-soft: #eef2ff;
+        --emotion-chip-bg: rgba(224, 231, 255, 0.98);
+        --emotion-border-soft: rgba(125, 211, 252, 0.7);
+      }
+
+      /* RISE (회복) */
+      .theme-RISE {
+        --emotion-main: #4ade80;
+        --emotion-sub: #facc15;
+        --emotion-bg-soft: #fefce8;
+        --emotion-chip-bg: rgba(254, 249, 195, 0.98);
+        --emotion-border-soft: rgba(250, 204, 21, 0.7);
+      }
+
+      /* ================= 공통 레이아웃 ================= */
+
       *,
       *::before,
       *::after {
         box-sizing: border-box;
       }
+
       body {
         margin: 0;
         min-height: 100vh;
@@ -44,9 +165,11 @@
         align-items: stretch;
         color: var(--color-text-main);
       }
+
       button {
         font-family: inherit;
       }
+
       .app-root {
         position: relative;
         width: 100%;
@@ -54,27 +177,32 @@
         min-height: 100vh;
         overflow: hidden;
       }
+
+      /* ===== 배경 레이어 (행성 · 집 · 나무) ===== */
+
       .background-layer {
         position: absolute;
         inset: 0;
         pointer-events: none;
       }
+
       .glow-orb {
         position: absolute;
         border-radius: 50%;
         filter: blur(40px);
-        opacity: 0.45;
-        background: radial-gradient(circle, rgba(255, 255, 255, 0.85), transparent);
+        opacity: 0.4;
       }
-      .glow-orb-pink {
-        background: radial-gradient(circle, var(--color-brand-primary), transparent);
+
+      .glow-orb:nth-child(1) {
+        background: radial-gradient(circle, #ffb9cc, transparent);
       }
-      .glow-orb-blue {
-        background: radial-gradient(circle, var(--color-brand-accent), transparent);
+      .glow-orb:nth-child(2) {
+        background: radial-gradient(circle, #aee6ff, transparent);
       }
-      .glow-orb-mint {
-        background: radial-gradient(circle, var(--color-brand-mint), transparent);
+      .glow-orb:nth-child(3) {
+        background: radial-gradient(circle, #cfffe5, transparent);
       }
+
       .particles span {
         position: absolute;
         width: 8px;
@@ -84,15 +212,7 @@
         opacity: 0.65;
         animation: floatSlow 12s ease-in-out infinite alternate;
       }
-      .particle-pink {
-        background: rgba(255, 185, 204, 0.75);
-      }
-      .particle-blue {
-        background: rgba(174, 230, 255, 0.75);
-      }
-      .particle-mint {
-        background: rgba(207, 255, 229, 0.75);
-      }
+
       @keyframes floatSlow {
         0% {
           transform: translateY(0px);
@@ -101,6 +221,7 @@
           transform: translateY(-18px);
         }
       }
+
       @keyframes float-soft {
         0% {
           transform: translateY(0px);
@@ -112,12 +233,15 @@
           transform: translateY(0px);
         }
       }
+
       .floating-slow {
         animation: float-soft 8s ease-in-out infinite;
       }
+
       .floating-fast {
         animation: float-soft 5s ease-in-out infinite;
       }
+
       .pocket-objects {
         position: absolute;
         inset: 0;
@@ -126,11 +250,13 @@
         align-items: flex-end;
         padding: 0 32px 12px;
       }
+
       .pocket-planet,
       .pocket-tree,
       .pocket-house {
         position: relative;
       }
+
       .pocket-planet {
         width: 90px;
         height: 90px;
@@ -140,7 +266,7 @@
         position: absolute;
         inset: 0;
         border-radius: 50%;
-        background: var(--color-planet-lavender);
+        background: #d6c7ff;
         box-shadow: 0 20px 40px rgba(214, 199, 255, 0.45);
       }
       .pocket-planet::after {
@@ -149,11 +275,12 @@
         width: 110%;
         height: 24px;
         border-radius: 999px;
-        border: 3px solid rgba(255, 255, 255, 0.5);
+        border: 3px solid rgba(255, 255, 255, 0.6);
         top: 35px;
         left: -5%;
         transform: rotate(-8deg);
       }
+
       .pocket-house {
         width: 80px;
       }
@@ -163,7 +290,7 @@
         width: 100%;
         height: 52px;
         border-radius: 18px;
-        background: var(--color-brand-secondary);
+        background: #ffd8a8;
         box-shadow: 0 16px 30px rgba(255, 216, 168, 0.4);
       }
       .pocket-house::after {
@@ -173,9 +300,10 @@
         left: 10px;
         width: 60px;
         height: 32px;
-        background: var(--color-brand-mint);
+        background: #cfffe5;
         clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
       }
+
       .pocket-tree {
         width: 60px;
       }
@@ -185,7 +313,7 @@
         width: 52px;
         height: 52px;
         border-radius: 50%;
-        background: var(--color-tiny-tree-green);
+        background: #b6e8b0;
         box-shadow: 0 12px 24px rgba(182, 232, 176, 0.5);
       }
       .pocket-tree::after {
@@ -198,6 +326,9 @@
         border-radius: 6px;
         background: #96785a;
       }
+
+      /* ===== Scene Stack ===== */
+
       .scene-stack {
         position: relative;
         z-index: 1;
@@ -208,19 +339,21 @@
         flex-direction: column;
         gap: 24px;
       }
+
       .scene {
         display: none;
         min-height: calc(100vh - 64px);
-        padding: 0;
         margin: 0;
         border: none;
         background: transparent;
       }
+
       .scene.is-active {
         display: flex;
         align-items: center;
         justify-content: center;
       }
+
       .scene-card {
         position: relative;
         width: 100%;
@@ -235,30 +368,35 @@
         flex-direction: column;
         gap: 18px;
       }
+
       .title {
         font-size: clamp(24px, 6vw, 28px);
         font-weight: 700;
         line-height: 1.3;
         margin: 0;
       }
+
       .subtitle {
         font-size: 14px;
         font-weight: 600;
         color: var(--color-text-sub);
         margin: 0;
       }
+
       .body-text {
         font-size: 15px;
         line-height: 1.5;
         color: var(--color-text-sub);
         margin: 0;
       }
+
       .caption {
         font-size: 12px;
         color: var(--color-text-muted);
         margin: 0;
         text-align: center;
       }
+
       .btn-primary,
       .btn-secondary,
       .ghost-btn {
@@ -268,28 +406,112 @@
         font-size: 16px;
         padding: 14px 18px;
         cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
       }
+
       .btn-primary {
-        background: linear-gradient(120deg, var(--color-brand-primary), var(--color-brand-accent));
+        background: linear-gradient(120deg, var(--emotion-main), var(--emotion-sub));
         color: #2f1b33;
-        box-shadow: 0 15px 35px rgba(255, 185, 204, 0.45);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
       }
+
       .btn-secondary {
-        background: rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.9);
         color: var(--color-text-main);
-        border: 1px solid rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.6);
       }
+
+      .btn-primary:active,
+      .btn-secondary:active,
+      .ghost-btn:active {
+        transform: translateY(1px) scale(0.99);
+        box-shadow: none;
+      }
+
       .btn-primary:disabled,
       .btn-secondary:disabled {
         opacity: 0.6;
         cursor: not-allowed;
       }
+
+      /* ================= Scene 1 · Intro ================= */
+
       .scene-intro .scene-card {
         text-align: center;
         padding-top: 48px;
-        padding-bottom: 48px;
+        padding-bottom: 44px;
       }
+
+      .intro-tagline {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text-sub);
+        margin-bottom: 6px;
+      }
+
+      .intro-pair {
+        margin-top: 16px;
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+      }
+
+      .intro-photo-thumb,
+      .intro-pet-thumb {
+        flex: 0 0 120px;
+        border-radius: 24px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 0 12px 24px rgba(94, 64, 128, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: var(--color-text-muted);
+      }
+
+      .intro-pet-thumb-inner {
+        width: 72px;
+        height: 72px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 30% 0%, #ffffff, var(--emotion-main));
+        box-shadow:
+          0 10px 18px rgba(0, 0, 0, 0.08),
+          0 0 0 2px rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+      }
+
+      .intro-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 12px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--emotion-bg-soft);
+        border: 1px solid var(--emotion-border-soft);
+        font-size: 12px;
+        color: var(--color-text-sub);
+      }
+
+      .intro-pill {
+        display: inline-flex;
+        gap: 4px;
+        font-size: 12px;
+        margin-top: 6px;
+        color: var(--color-text-muted);
+      }
+
+      /* ================= Scene 2 · Capture ================= */
+
+      .scene-capture .scene-card {
+        gap: 16px;
+      }
+
       .camera-frame {
         position: relative;
         border-radius: 28px;
@@ -301,15 +523,18 @@
         align-items: center;
         justify-content: center;
       }
+
       .camera-preview {
         width: 100%;
         height: 100%;
         object-fit: cover;
         background: #020112;
       }
+
       .camera-preview.is-mirrored {
         transform: scaleX(-1);
       }
+
       #capture-flash {
         position: absolute;
         inset: 0;
@@ -318,61 +543,162 @@
         pointer-events: none;
         transition: opacity 0.2s ease;
       }
+
       #capture-flash.is-visible {
         opacity: 1;
       }
+
+      /* 감정 포탈 가이드 */
+      .camera-portal-overlay {
+        position: absolute;
+        inset: 12px 24px;
+        border-radius: 999px;
+        border: 2px dashed rgba(255, 255, 255, 0.75);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4) inset;
+        pointer-events: none;
+      }
+
+      .camera-portal-highlight {
+        position: absolute;
+        inset: 22px 40px;
+        border-radius: 24px;
+        background: radial-gradient(
+          circle at 50% 0%,
+          rgba(255, 255, 255, 0.22),
+          transparent 70%
+        );
+        mix-blend-mode: screen;
+        pointer-events: none;
+      }
+
+      /* 테마 컬러 살짝 반영 */
+      .theme-SUNNY .camera-portal-overlay,
+      .theme-SPARK .camera-portal-overlay,
+      .theme-RISE .camera-portal-overlay {
+        border-color: rgba(251, 191, 36, 0.9);
+      }
+
+      .theme-FOG .camera-portal-overlay,
+      .theme-CALM .camera-portal-overlay,
+      .theme-FROST .camera-portal-overlay {
+        border-color: rgba(56, 189, 248, 0.9);
+      }
+
+      .theme-STORM .camera-portal-overlay {
+        border-color: rgba(248, 113, 113, 0.9);
+      }
+
+      .capture-top-label {
+        position: absolute;
+        top: 10px;
+        left: 14px;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.85);
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.35);
+      }
+
+      /* 감정 버블 */
+      .emotion-bubble {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--emotion-bg-soft);
+        border: 1px solid var(--emotion-border-soft);
+        color: var(--color-text-main);
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.15);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 0.25s ease, transform 0.25s ease;
+      }
+
+      .emotion-bubble.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .emotion-bubble span:last-child {
+        font-size: 11px;
+        color: var(--color-text-muted);
+      }
+
       .capture-controls {
         display: flex;
         justify-content: center;
         gap: 16px;
         align-items: center;
       }
+
       .ghost-btn {
-        background: rgba(255, 255, 255, 0.65);
+        background: rgba(255, 255, 255, 0.85);
         color: var(--color-text-main);
-        border: 1px solid rgba(255, 255, 255, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.55);
         min-width: 88px;
       }
+
       .capture-btn {
         width: 88px;
         height: 88px;
         border-radius: 50%;
-        border: 6px solid rgba(255, 255, 255, 0.8);
-        background: linear-gradient(180deg, var(--color-brand-primary), var(--color-brand-secondary));
-        box-shadow: 0 18px 36px rgba(255, 185, 204, 0.35);
+        border: 6px solid rgba(255, 255, 255, 0.9);
+        background: linear-gradient(180deg, var(--emotion-main), var(--emotion-sub));
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.2);
       }
+
       .capture-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
       }
+
       .capture-status {
         border-radius: 18px;
         padding: 14px 16px;
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.96);
         font-size: 14px;
         display: flex;
         justify-content: space-between;
         gap: 8px;
         align-items: center;
         color: var(--color-text-main);
-        border: 1px solid rgba(255, 255, 255, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.6);
       }
+
       .capture-status small {
         color: var(--color-text-muted);
       }
+
       .capture-status[data-variant="success"] {
-        background: rgba(207, 255, 229, 0.95);
-        color: #155648;
+        background: rgba(220, 252, 231, 0.96);
+        color: #14532d;
       }
+
       .capture-status[data-variant="error"] {
-        background: rgba(255, 207, 214, 0.95);
-        color: #7c1e33;
+        background: rgba(254, 226, 226, 0.96);
+        color: #7f1d1d;
       }
+
+      canvas {
+        display: none;
+      }
+
+      /* ================= Scene 3 · Loading ================= */
+
+      .scene-loading .scene-card {
+        gap: 18px;
+      }
+
       .generation-orb {
         width: 180px;
         height: 180px;
         border-radius: 50%;
-        margin: 0 auto;
+        margin: 8px auto 0;
         background: radial-gradient(circle, rgba(255, 255, 255, 0.85), rgba(174, 230, 255, 0.3));
         box-shadow:
           0 0 80px rgba(174, 230, 255, 0.6),
@@ -380,14 +706,16 @@
         position: relative;
         overflow: hidden;
       }
+
       .generation-orb::after {
         content: "";
         position: absolute;
         inset: 15%;
         border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.6);
         animation: pulseGlow 4s ease-in-out infinite;
       }
+
       @keyframes pulseGlow {
         0% {
           transform: scale(0.95);
@@ -402,56 +730,98 @@
           opacity: 0.6;
         }
       }
+
+      /* 감정 테마 색 섞인 오브 */
+      .loading-orbit {
+        position: absolute;
+        inset: 26px;
+        border-radius: 50%;
+        border: 1px dashed rgba(148, 163, 184, 0.6);
+      }
+
+      .loading-pet-dot {
+        position: absolute;
+        width: 42px;
+        height: 42px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, var(--emotion-main), var(--emotion-sub));
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+        animation: orbitDot 6s linear infinite;
+      }
+
+      @keyframes orbitDot {
+        0% {
+          transform: rotate(0deg) translateY(-62px) rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg) translateY(-62px) rotate(-360deg);
+        }
+      }
+
       .progress-panel {
-        background: rgba(255, 255, 255, 0.85);
+        background: rgba(255, 255, 255, 0.96);
         border-radius: 20px;
         padding: 16px;
         display: flex;
         flex-direction: column;
         gap: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.6);
       }
+
       .progress-bar {
         width: 100%;
         height: 14px;
         border-radius: 999px;
-        background: rgba(47, 42, 59, 0.08);
+        background: rgba(47, 42, 59, 0.06);
         overflow: hidden;
       }
+
       .progress-bar-fill {
         display: block;
         height: 100%;
-        width: 0%;
+        width: 30%;
         border-radius: inherit;
-        background: linear-gradient(90deg, var(--color-brand-primary), var(--color-brand-accent));
+        background: linear-gradient(90deg, var(--emotion-main), var(--emotion-sub));
         transition: width 0.3s ease;
       }
+
       .progress-meta {
         display: flex;
         justify-content: space-between;
         font-size: 14px;
         color: var(--color-text-main);
       }
-      .result-card {
+
+      .loading-hints {
+        font-size: 13px;
+        color: var(--color-text-muted);
+      }
+
+      /* ================= Scene 4 · Result ================= */
+
+      .scene-result .scene-card {
         gap: 20px;
       }
+
       .result-media {
         border-radius: 24px;
-        background: rgba(255, 255, 255, 0.7);
-        border: 1px dashed rgba(47, 42, 59, 0.2);
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px dashed rgba(47, 42, 59, 0.16);
         padding: 12px;
       }
+
       .result-image-wrapper {
         position: relative;
         width: 100%;
         aspect-ratio: 1 / 1;
         border-radius: 20px;
-        background: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.9);
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
       }
+
       #result-image {
         width: 100%;
         height: 100%;
@@ -459,15 +829,109 @@
         border-radius: inherit;
         display: none;
       }
+
       #result-image.is-visible {
         display: block;
       }
+
       #result-image-placeholder {
         margin: 0;
         font-size: 14px;
         color: var(--color-text-sub);
         text-align: center;
       }
+
+      .result-meta-top {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: var(--emotion-chip-bg);
+        border: 1px solid var(--emotion-border-soft);
+        color: var(--color-text-sub);
+      }
+
+      .chip-emoji {
+        font-size: 14px;
+      }
+
+      .growth-section {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 16px;
+        background: var(--emotion-bg-soft);
+        border: 1px solid var(--emotion-border-soft);
+      }
+
+      .growth-label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: var(--color-text-sub);
+        margin-bottom: 4px;
+      }
+
+      .growth-bar {
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(47, 42, 59, 0.06);
+        overflow: hidden;
+      }
+
+      .growth-bar-fill {
+        width: 56%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--emotion-main), var(--emotion-sub));
+      }
+
+      .log-list {
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px dashed rgba(47, 42, 59, 0.12);
+        display: grid;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--color-text-sub);
+      }
+
+      .log-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .log-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .log-chip {
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(47, 42, 59, 0.18);
+        font-size: 11px;
+        background: rgba(255, 255, 255, 0.95);
+      }
+
+      .log-right {
+        font-size: 11px;
+        color: var(--color-text-muted);
+      }
+
       .emotion-field {
         display: flex;
         flex-direction: column;
@@ -475,6 +939,7 @@
         font-weight: 600;
         color: var(--color-text-main);
       }
+
       .emotion-field textarea {
         border: 1px solid rgba(47, 42, 59, 0.15);
         border-radius: 20px;
@@ -482,72 +947,104 @@
         font: inherit;
         resize: none;
         min-height: 110px;
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.96);
       }
+
       .emotion-field textarea:focus {
-        outline: 2px solid rgba(255, 185, 204, 0.4);
+        outline: 2px solid rgba(255, 185, 204, 0.6);
       }
+
       .result-actions {
         display: flex;
         gap: 12px;
       }
+
       .result-toast {
         font-size: 14px;
         margin: 0;
         color: var(--color-text-sub);
         min-height: 18px;
       }
-      canvas {
-        display: none;
-      }
-      @media (max-width: 420px) {
-        .scene-card {
-          padding: 28px 20px 32px;
-        }
-        .camera-frame {
-          border-radius: 22px;
-        }
-      }
+
     </style>
   </head>
-  <body>
+  <!-- 감정 타입에 따라 theme-XXXX 클래스만 바꿔주면 됩니다 -->
+  <body class="theme-SUNNY">
     <div class="app-root">
+      <!-- 배경 레이어 -->
       <div class="background-layer" aria-hidden="true">
-        <div class="glow-orb glow-orb-pink" style="top:-10%;left:-20%;width:320px;height:320px;"></div>
-        <div class="glow-orb glow-orb-blue" style="top:20%;right:-10%;width:260px;height:260px;"></div>
-        <div class="glow-orb glow-orb-mint" style="bottom:-10%;left:10%;width:280px;height:280px;"></div>
+        <div class="glow-orb" style="top:-10%;left:-20%;width:320px;height:320px;"></div>
+        <div class="glow-orb" style="top:20%;right:-10%;width:260px;height:260px;"></div>
+        <div class="glow-orb" style="bottom:-10%;left:10%;width:280px;height:280px;"></div>
+
         <div class="particles">
-          <span class="particle particle-pink" style="top:10%;left:18%;animation-delay:0s;"></span>
-          <span class="particle particle-blue" style="top:25%;right:12%;animation-delay:1s;"></span>
-          <span class="particle particle-mint" style="top:40%;left:8%;animation-delay:2s;"></span>
-          <span class="particle particle-blue" style="top:55%;right:25%;animation-delay:1.5s;"></span>
-          <span class="particle particle-pink" style="top:70%;left:30%;animation-delay:0.5s;"></span>
-          <span class="particle particle-mint" style="top:85%;right:15%;animation-delay:2.5s;"></span>
+          <span style="top:10%;left:18%;animation-delay:0s;"></span>
+          <span style="top:25%;right:12%;animation-delay:1s;"></span>
+          <span style="top:40%;left:8%;animation-delay:2s;"></span>
+          <span style="top:55%;right:25%;animation-delay:1.5s;"></span>
+          <span style="top:70%;left:30%;animation-delay:0.5s;"></span>
+          <span style="top:85%;right:15%;animation-delay:2.5s;"></span>
         </div>
+
         <div class="pocket-objects">
           <div class="pocket-planet floating-slow"></div>
           <div class="pocket-house floating-fast"></div>
           <div class="pocket-tree floating-slow"></div>
         </div>
       </div>
+
+      <!-- ===== Scene Stack (1~4) ===== -->
       <div class="scene-stack" data-app-root>
+        <!-- Scene 1: Intro -->
         <section class="scene scene-intro is-active" data-scene="intro" aria-live="polite">
-          <div class="scene-card intro-card">
-            <p class="subtitle">Pocket Mood World</p>
-            <h1 class="title">오늘의 감정으로 태어나는 아기 펫</h1>
-            <p class="body-text">사진과 감정으로 나만의 작은 감정 세계를 열어보세요.</p>
+          <div class="scene-card">
+            <p class="subtitle">Pocket Emotion World</p>
+            <h1 class="title">오늘의 감정으로 태어나는 감정 아기 펫</h1>
+            <p class="body-text">
+              사진과 감정을 기록할 때마다<br />
+              나만의 감정 생명체가 자라나요.
+            </p>
+
+            <div class="intro-pair">
+              <div class="intro-photo-thumb">
+                오늘의 너를 담을<br />
+                감정 사진 자리
+              </div>
+              <div class="intro-pet-thumb">
+                <div class="intro-pet-thumb-inner">🥕</div>
+              </div>
+            </div>
+
+            <div class="intro-badge">
+              <span>✨ 감정 성장 게임</span>
+              <span>·</span>
+              <span>💗 감정 웰니스</span>
+            </div>
+            <div class="intro-pill">
+              <span>사진 1장</span>
+              <span>·</span>
+              <span>감정 한 줄</span>
+              <span>→</span>
+              <span>나만의 감정 친구</span>
+            </div>
+
             <button class="btn-primary" id="cta-start">펫 만들기 시작하기</button>
-            <p class="caption">Powered by AWS </p>
+            <p class="caption">Powered by AWS · Nano Banana</p>
           </div>
         </section>
 
+        <!-- Scene 2: Capture -->
         <section class="scene scene-capture" data-scene="capture" aria-live="polite">
-          <div class="scene-card capture-card">
+          <div class="scene-card">
             <div>
-              <p class="subtitle">사진 찍기</p>
-              <h2 class="title">Pocket Mood World에 들어갈 너의 모습을 보여줘</h2>
-              <p class="body-text">안경, 옷, 들고 있는 물건까지 잘 보이게 촬영해주세요.</p>
+              <p class="subtitle">감정 사진 찍기</p>
+              <h2 class="title">오늘의 너를 가장 잘 보여주는 순간을 담아줘</h2>
+              <p class="body-text">
+                지금 느끼는 감정이 잘 보이게,<br />
+                표정과 분위기를 자연스럽게 찍어주세요.
+              </p>
             </div>
+
             <div class="camera-frame">
               <video
                 id="camera-preview"
@@ -556,27 +1053,49 @@
                 autoplay
                 muted
               ></video>
+
               <div id="capture-flash" aria-hidden="true"></div>
+
+              <div class="camera-portal-overlay"></div>
+              <div class="camera-portal-highlight"></div>
+              <div class="capture-top-label">Emotion Portal</div>
+
+              <div class="emotion-bubble" id="emotion-bubble">
+                <span>🌞 기쁨 +12</span>
+                <span>감정 분석 중…</span>
+              </div>
             </div>
+
             <div class="capture-controls">
               <button class="ghost-btn" id="capture-back" type="button">뒤로</button>
               <button class="capture-btn" id="capture-shutter" type="button" aria-label="사진 찍기"></button>
               <button class="ghost-btn" id="capture-switch" type="button">카메라 전환</button>
             </div>
+
             <div class="capture-status" id="capture-status" data-variant="info">
-              <span id="status-message">촬영 준비가 완료되면 여기서 안내해드릴게요.</span>
-              <small id="status-meta"></small>
+              <span id="status-message">촬영 후, 감정 분석 결과가 여기 표시돼요.</span>
+              <small id="status-meta">하루 최대 5번까지 기록할 수 있어요.</small>
             </div>
+
             <canvas id="capture-canvas"></canvas>
           </div>
         </section>
 
+        <!-- Scene 3: Loading -->
         <section class="scene scene-loading" data-scene="loading" aria-live="polite">
-          <div class="scene-card loading-card">
-            <p class="subtitle">Pocket Mood World</p>
-            <h2 class="title">아기 펫을 만들고 있어요</h2>
-            <p class="body-text">네 감정을 읽고 Pocket Mood World에서 아기 펫을 준비 중이에요.</p>
-            <div class="generation-orb"></div>
+          <div class="scene-card">
+            <p class="subtitle">Pocket Emotion World</p>
+            <h2 class="title">감정으로 아기 펫을 만들고 있어요</h2>
+            <p class="body-text">
+              방금 찍은 사진과 최근 며칠의 감정 패턴을 섞어서<br />
+              오늘의 감정을 닮은 작은 펫을 준비 중이에요.
+            </p>
+
+            <div class="generation-orb">
+              <div class="loading-orbit"></div>
+              <div class="loading-pet-dot"></div>
+            </div>
+
             <div class="progress-panel">
               <div class="progress-bar">
                 <span class="progress-bar-fill" id="loading-progress-fill"></span>
@@ -585,26 +1104,80 @@
                 <span id="loading-progress-text">펫 생성 진행 중… 0%</span>
                 <span id="loading-timer-text">00:00</span>
               </div>
-              <p class="body-text" id="loading-status-message">서버에서 펫을 준비 중이에요.</p>
+              <p class="loading-hints" id="loading-status-message">
+                “감정 색을 섞는 중…”, “오늘의 표정을 읽는 중…”, “너만의 패턴을 찾는 중…”이 번갈아가며
+                표시돼요.
+              </p>
             </div>
+
             <button class="btn-secondary" id="loading-retry" type="button" hidden>다시 시도</button>
           </div>
         </section>
 
+        <!-- Scene 4: Result -->
         <section class="scene scene-result" data-scene="result" aria-live="polite">
-          <div class="scene-card result-card">
+          <div class="scene-card">
             <div>
-              <p class="subtitle">Pocket Mood World</p>
-              <h2 class="title">아기 펫이 태어났어요!</h2>
-              <p class="body-text">오늘의 너를 닮은 아기 펫이야. 감정을 남겨보세요.</p>
+              <p class="subtitle">Pocket Emotion World</p>
+              <h2 class="title">감정 펫이 태어났어요!</h2>
+              <p class="body-text">
+                오늘의 너를 닮은 감정 펫이에요.<br />
+                지금 느끼는 감정을 한 줄로 남겨보세요.
+              </p>
             </div>
+
             <div class="result-media">
               <div class="result-image-wrapper">
-                <p class="body-text" id="result-image-placeholder">생성된 이미지를 가져오는 중이에요.</p>
-                <img id="result-image" alt="생성된 펫 이미지" />
+                <p class="body-text" id="result-image-placeholder">
+                  생성된 펫 이미지를 불러오는 중이에요.
+                </p>
+                <img id="result-image" alt="생성된 감정 펫 이미지" />
               </div>
-              <p class="caption" id="result-image-meta"></p>
+
+              <div class="result-meta-top">
+                <span class="chip"><span class="chip-emoji">🌞</span>SUNNY 타입</span>
+                <span class="chip">Stage 2 · Sprout</span>
+              </div>
+
+              <div class="growth-section">
+                <div class="growth-label-row">
+                  <span>다음 성장까지 남은 감정 에너지</span>
+                  <span>56%</span>
+                </div>
+                <div class="growth-bar">
+                  <div class="growth-bar-fill"></div>
+                </div>
+
+                <div class="log-list">
+                  <div class="log-item">
+                    <div class="log-left">
+                      <span class="log-chip">🌞 기쁨</span>
+                      <span>카페에서 친구와 수다</span>
+                    </div>
+                    <div class="log-right">+12</div>
+                  </div>
+                  <div class="log-item">
+                    <div class="log-left">
+                      <span class="log-chip">FOCUS</span>
+                      <span>프로젝트에 몰입</span>
+                    </div>
+                    <div class="log-right">+7</div>
+                  </div>
+                  <div class="log-item">
+                    <div class="log-left">
+                      <span class="log-chip">FOG</span>
+                      <span>잠깐의 불안함</span>
+                    </div>
+                    <div class="log-right">+3</div>
+                  </div>
+                </div>
+              </div>
+
+              <p class="caption" id="result-image-meta">
+                감정 패턴에 따라 펫의 색감과 표정이 조금씩 달라져요.
+              </p>
             </div>
+
             <label class="emotion-field">
               <span>오늘 너의 감정은 어때?</span>
               <textarea
@@ -613,15 +1186,134 @@
                 maxlength="300"
               ></textarea>
             </label>
+
             <div class="result-actions">
               <button class="btn-secondary" id="result-retry" type="button">다시 만들기</button>
               <button class="btn-primary" id="result-save" type="button">저장하기</button>
             </div>
+
             <p class="result-toast" id="result-toast"></p>
           </div>
         </section>
       </div>
     </div>
+
+    <!-- ===================== Scene 5: Weekly Report ===================== -->
+    <section class="scene scene-weekly" data-scene="weekly" aria-live="polite">
+      <div class="scene-card">
+        <p class="subtitle">Weekly Emotion Report</p>
+        <h2 class="title">이번 주 감정 패턴 요약</h2>
+        <p class="body-text">
+          일주일 동안 기록된 감정을 LLM이 분석해<br />
+          이번 주의 대표 감정 타입을 알려줘요.
+        </p>
+
+        <div class="result-media">
+          <div class="result-image-wrapper" style="aspect-ratio: 1 / 1.2">
+            <p class="body-text" style="text-align: center; margin: 16px 0">감정 그래프 예시</p>
+          </div>
+
+          <div class="result-meta-top">
+            <span class="chip"><span class="chip-emoji">🌞</span>SUNNY · 45%</span>
+            <span class="chip">SPARK · 20%</span>
+            <span class="chip">FOG · 15%</span>
+          </div>
+
+          <div class="growth-section">
+            <div class="growth-label-row">
+              <span>밝음 계열 감정 비율</span><span>72%</span>
+            </div>
+            <div class="growth-bar">
+              <div class="growth-bar-fill" style="width: 72%"></div>
+            </div>
+
+            <div class="log-list">
+              <div class="log-item">
+                <div class="log-left">
+                  <span class="log-chip">SUNNY</span><span>친구와 즐거운 시간</span>
+                </div>
+                <div class="log-right">+12</div>
+              </div>
+
+              <div class="log-item">
+                <div class="log-left">
+                  <span class="log-chip">SPARK</span><span>새로운 아이디어 영감</span>
+                </div>
+                <div class="log-right">+7</div>
+              </div>
+
+              <div class="log-item">
+                <div class="log-left">
+                  <span class="log-chip">FOG</span><span>작은 불안의 순간</span>
+                </div>
+                <div class="log-right">+3</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="caption">이 데이터는 시연용이며, 실제 서비스에서는 자동 분석됩니다.</p>
+        </div>
+
+        <button class="btn-primary" id="btn-weekly-evolve">메가 진화 시작하기</button>
+      </div>
+    </section>
+
+    <!-- ===================== Scene 6: Mega Evolution Loading ===================== -->
+    <section class="scene scene-evolve" data-scene="evolve" aria-live="polite">
+      <div class="scene-card">
+        <p class="subtitle">Mega Evolution</p>
+        <h2 class="title">감정 에너지가 펫을 변화시키는 중…</h2>
+        <p class="body-text">
+          이번 주 감정 결과(SUNNY)를 기반으로<br />
+          LLM이 SUNNY 메가 진화 프롬프트를 생성하고 있어요.
+        </p>
+
+        <div class="result-media">
+          <div class="result-image-wrapper">
+            <img src="images/pet_base.png" id="evolve-before" alt="기존 펫" />
+          </div>
+          <p class="caption">3초 후 메가 진화된 모습으로 변합니다.</p>
+        </div>
+
+        <div class="growth-section">
+          <div class="growth-label-row">
+            <span>메가 진화 진행률</span><span id="evolve-percent">0%</span>
+          </div>
+          <div class="growth-bar">
+            <div class="growth-bar-fill" id="evolve-progress" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <p class="caption" id="evolve-status">SUNNY 프롬프트 적용 중…</p>
+      </div>
+    </section>
+
+    <!-- ===================== Scene 7: Mega Evolution Result ===================== -->
+    <section class="scene scene-evolved" data-scene="evolved" aria-live="polite">
+      <div class="scene-card">
+        <p class="subtitle">SUNNY Mega Form</p>
+        <h2 class="title">펫이 새롭게 진화했어요!</h2>
+        <p class="body-text">
+          SUNNY 감정 패턴에 맞춰<br />
+          밝고 활기찬 메가 진화 형태로 변화했어요.
+        </p>
+
+        <div class="result-media">
+          <div class="result-image-wrapper">
+            <img src="images/pet_sunny_evolved.png" id="evolved-image" alt="메가 진화 이미지" />
+          </div>
+
+          <div class="result-meta-top">
+            <span class="chip"><span class="chip-emoji">🌞</span>SUNNY · Mega Evolution</span>
+            <span class="chip">낙관성 · 생기 · 활력 상승</span>
+          </div>
+
+          <p class="caption">감정에 따라 CLOUDY, FOG 버전으로도 변화할 수 있어요.</p>
+        </div>
+
+        <button class="btn-primary" id="btn-evolved-home">홈으로 돌아가기</button>
+      </div>
+    </section>
 
     <script type="module" src="/src/main.ts"></script>
   </body>
