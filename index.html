@@ -989,6 +989,40 @@
         min-height: 18px;
       }
 
+      .error-dump-panel {
+        position: fixed;
+        left: 50%;
+        bottom: 16px;
+        transform: translateX(-50%);
+        width: min(720px, calc(100% - 24px));
+        background: rgba(0, 0, 0, 0.78);
+        color: #f6f0ff;
+        border-radius: 14px;
+        padding: 12px 12px 10px;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+        z-index: 9998;
+      }
+
+      .error-dump-panel h3 {
+        margin: 0 0 6px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .error-dump-panel pre {
+        margin: 0;
+        max-height: 200px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .error-dump-panel[hidden] {
+        display: none;
+      }
+
     </style>
   </head>
   <!-- 감정 타입에 따라 theme-XXXX 클래스만 바꿔주면 됩니다 -->

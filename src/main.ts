@@ -27,7 +27,7 @@ const MIN_LOADING_DURATION_MS = 3_000;
 const LOADING_PROGRESS_INTERVAL_MS = 250;
 const POLLING_INTERVAL_MS = 3_000;
 const DEMO_JOB_ID = "demo-job";
-const DEMO_IMAGE_URL = "static/다운로드.jpg";
+const DEMO_IMAGE_URL = "/demo-sample.jpg";
 const DEMO_COMPLETION_DELAY_MS = 4_000;
 
 interface GenerationStatusPayload {
