@@ -9,6 +9,9 @@ const queryParams = new URLSearchParams(window.location.search);
 const DEMO_MODE =
   ["1", "true"].includes((queryParams.get("demo") || "").toLowerCase()) ||
   queryParams.get("mode") === "demo";
+const MOCK_CAPTURE_MODE =
+  ["1", "true"].includes((queryParams.get("mock") || "").toLowerCase()) ||
+  queryParams.get("mode") === "mock";
 const PRESIGN_ENDPOINT =
   "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/get-input-url";
 const STEP_FUNCTION_ENDPOINT =
@@ -193,8 +196,9 @@ function hasCameraSupport(): boolean {
 async function activateCamera(forceRestart = false) {
   if (!videoEl) return;
   updatePreviewMirror();
-  if (!hasCameraSupport()) {
-    setCaptureStatus("이 기기에서 카메라를 사용할 수 없습니다.", "error");
+  if (!hasCameraSupport() || MOCK_CAPTURE_MODE) {
+    setCaptureStatus("PC 테스트 모드: 샘플 이미지를 사용해요.", "info");
+    state.isCameraReady = true;
     updateCaptureControls();
     return;
   }
@@ -270,13 +274,10 @@ function updatePreviewMirror() {
 
 async function handleCapture() {
   if (state.isUploading || !state.isCameraReady) return;
-  if (!videoEl || !canvasEl) {
-    setCaptureStatus("카메라가 준비되지 않았어요.", "error");
-    return;
-  }
+  const canUseCamera = Boolean(videoEl && canvasEl && state.stream);
   try {
     animateFlash();
-    const blob = await captureFrame(videoEl, canvasEl);
+    const blob = canUseCamera && videoEl && canvasEl ? await captureFrame(videoEl, canvasEl) : await fetchMockCaptureBlob();
     setUploading(true);
     if (DEMO_MODE) {
       setCaptureStatus("데모 모드: 업로드 없이 펫 생성을 시뮬레이션해요.", "info");
@@ -812,6 +813,15 @@ function setCaptureStatus(message: string, variant: CaptureStatusVariant = "info
 
 function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9./_-]/g, "_");
+}
+
+async function fetchMockCaptureBlob(): Promise<Blob> {
+  const fallbackUrl = DEMO_IMAGE_URL;
+  const response = await fetch(fallbackUrl);
+  if (!response.ok) {
+    throw new Error(`모의 캡처 이미지를 불러오지 못했습니다 (HTTP ${response.status})`);
+  }
+  return await response.blob();
 }
 
 type ExtraScene = "weekly" | "evolve" | "evolved";
