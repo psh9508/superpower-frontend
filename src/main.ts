@@ -13,7 +13,7 @@ const MOCK_CAPTURE_MODE =
   ["1", "true"].includes((queryParams.get("mock") || "").toLowerCase()) ||
   queryParams.get("mode") === "mock";
 const PRESIGN_ENDPOINT =
-  "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/get-input-url";
+  "https://hzavq71pqa.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
 const STEP_FUNCTION_ENDPOINT =
   "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/make-image";
 const PET_STATUS_ENDPOINT = "/api/pet-generation"; // TODO: actual API에 맞춰 교체
