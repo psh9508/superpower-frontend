@@ -79,6 +79,7 @@ const state: AppState = {
 
 const scenes = new Map<Scene, HTMLElement>();
 const root = document.querySelector<HTMLElement>("[data-app-root]");
+const bootAlert = document.getElementById("boot-alert") as HTMLDivElement | null;
 const startBtn = document.getElementById("cta-start") as HTMLButtonElement | null;
 const backBtn = document.getElementById("capture-back") as HTMLButtonElement | null;
 const shutterBtn = document.getElementById("capture-shutter") as HTMLButtonElement | null;
@@ -112,7 +113,10 @@ const evolvePercentLabel = document.getElementById("evolve-percent") as HTMLSpan
 const evolveStatusLabel = document.getElementById("evolve-status") as HTMLParagraphElement | null;
 
 function init() {
-  if (!root) return;
+  if (!root) {
+    showBootError("앱의 핵심 영역을 찾지 못했어요. 새로고침 후 다시 시도해주세요.");
+    return;
+  }
 
   document.querySelectorAll<HTMLElement>("[data-scene]").forEach((el) => {
     const sceneName = el.dataset.scene as Scene | undefined;
@@ -146,6 +150,7 @@ function init() {
   showScene("intro");
   setCaptureStatus("촬영 준비가 완료되면 여기서 안내해드릴게요.");
   updateCaptureControls();
+  markAppReady();
 }
 
 function showScene(next: Scene) {
@@ -313,8 +318,12 @@ async function handleCapture() {
     }
     const message =
       error instanceof Error ? error.message : "알 수 없는 오류가 발생했어요. 다시 시도해주세요.";
+    const errorDetail =
+      error instanceof Error
+        ? `${error.name}: ${error.message}${error.stack ? `\n${error.stack}` : ""}`
+        : String(error);
     setCaptureStatus(message, "error");
-    alert(`촬영/업로드 중 문제가 발생했습니다:\n${message}`);
+    alert(`촬영/업로드 중 문제가 발생했습니다:\n${message}\n\n[DEBUG]\n${errorDetail}`);
   } finally {
     setUploading(false);
   }
@@ -854,4 +863,28 @@ function startMegaEvolutionSequence() {
   }, 400);
 }
 
-init();
+function markAppReady() {
+  document.body.classList.add("boot-ready");
+}
+
+function showBootError(message: string) {
+  document.body.classList.remove("boot-ready");
+  if (bootAlert) {
+    bootAlert.innerHTML = `<strong>앱 로딩에 실패했어요.</strong><div>${message}</div>`;
+  }
+}
+
+window.addEventListener("error", () => {
+  showBootError("앱을 불러오는 중 오류가 발생했어요. 새로고침하거나 네트워크 상태를 확인해주세요.");
+});
+
+window.addEventListener("unhandledrejection", () => {
+  showBootError("앱을 불러오는 중 오류가 발생했어요. 새로고침하거나 네트워크 상태를 확인해주세요.");
+});
+
+try {
+  init();
+} catch (error) {
+  console.error("[app] init failed", error);
+  showBootError("앱을 불러오는 중 알 수 없는 오류가 발생했습니다.");
+}

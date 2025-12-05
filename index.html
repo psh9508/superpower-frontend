@@ -166,6 +166,29 @@
         color: var(--color-text-main);
       }
 
+      .boot-alert {
+        position: fixed;
+        inset: 14px 14px auto 14px;
+        padding: 12px 14px;
+        background: rgba(47, 42, 59, 0.9);
+        color: #fff;
+        border-radius: 14px;
+        font-size: 14px;
+        line-height: 1.5;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+        z-index: 9999;
+      }
+
+      .boot-alert strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 15px;
+      }
+
+      body.boot-ready #boot-alert {
+        display: none;
+      }
+
       button {
         font-family: inherit;
       }
@@ -970,6 +993,10 @@
   </head>
   <!-- 감정 타입에 따라 theme-XXXX 클래스만 바꿔주면 됩니다 -->
   <body class="theme-SUNNY">
+    <div class="boot-alert" id="boot-alert" role="status" aria-live="assertive">
+      <strong>앱을 불러오는 중이에요.</strong>
+      화면이 보이지 않으면 새로고침하거나 네트워크 연결을 확인해주세요.
+    </div>
     <div class="app-root">
       <!-- 배경 레이어 -->
       <div class="background-layer" aria-hidden="true">
