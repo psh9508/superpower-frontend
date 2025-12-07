@@ -9,11 +9,15 @@ const queryParams = new URLSearchParams(window.location.search);
 const DEMO_MODE =
   ["1", "true"].includes((queryParams.get("demo") || "").toLowerCase()) ||
   queryParams.get("mode") === "demo";
+const mockParam = (queryParams.get("mock") || "").toLowerCase();
+const mockDisabled = ["0", "false", "off"].includes(mockParam);
+const DEV_DEFAULT_MOCK = import.meta.env.DEV && !mockDisabled;
 const MOCK_CAPTURE_MODE =
-  ["1", "true"].includes((queryParams.get("mock") || "").toLowerCase()) ||
-  queryParams.get("mode") === "mock";
+  (!mockDisabled && queryParams.get("mode") === "mock") ||
+  ["1", "true"].includes(mockParam) ||
+  DEV_DEFAULT_MOCK;
 const PRESIGN_ENDPOINT =
-  "https://hzavq71pqa.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
+  "https://h2utwigwli.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
 const STEP_FUNCTION_ENDPOINT =
   "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/make-image";
 const PET_STATUS_ENDPOINT = "/api/pet-generation"; // TODO: actual API에 맞춰 교체
