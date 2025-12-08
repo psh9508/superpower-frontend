@@ -319,6 +319,7 @@ async function handleCapture() {
     animateFlash();
     const blob = canUseCamera && videoEl && canvasEl ? await captureFrame(videoEl, canvasEl) : await fetchMockCaptureBlob();
     const connectionId = getActiveConnectionId();
+    console.log("[connectionId]", connectionId);
     if (!connectionId && !DEMO_MODE) {
       const msg = "WebSocket ID를 아직 받지 못했어요. 잠시 후 다시 시도해주세요.";
       setCaptureStatus(msg, "error");
@@ -747,7 +748,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
 }
 
 function buildFileName(activeConnectionId?: string | null) {
-  const prefix = sanitizeFileName(activeConnectionId || state.connectionId || "emotion-pet");
+  const prefix = activeConnectionId || state.connectionId || "emotion-pet";
   const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "");
   const random = Math.random().toString(36).slice(2, 8);
   return `${prefix}/${stamp}-${random}.${FILE_EXTENSION}`;
@@ -755,8 +756,9 @@ function buildFileName(activeConnectionId?: string | null) {
 
 async function fetchPresignedUrl(fileName: string, contentType: string): Promise<string> {
   const url = new URL(PRESIGN_ENDPOINT);
-  url.searchParams.set("fileName", sanitizeFileName(fileName));
-  url.searchParams.set("key", fileName);
+  const cleanName = state.connectionId ? fileName : sanitizeFileName(fileName);
+  url.searchParams.set("fileName", cleanName);
+  url.searchParams.set("key", cleanName);
   url.searchParams.set("contentType", contentType);
 
   console.log("[presign] request url:", url.toString());
@@ -1008,7 +1010,7 @@ function updateWsIndicator(status: "disconnected" | "connecting" | "connected") 
 }
 
 function sanitizeFileName(name: string) {
-  return name.replace(/[^a-zA-Z0-9./_-]/g, "_");
+  return name.replace(/[^a-zA-Z0-9./_+=-]/g, "_");
 }
 
 async function fetchMockCaptureBlob(): Promise<Blob> {
