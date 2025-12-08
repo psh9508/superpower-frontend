@@ -937,12 +937,52 @@ function handleWebSocketMessage(data: unknown) {
   if (connectionId) {
     setConnectionId(connectionId);
   }
+
+  const imageUrl = extractImageUrlFromPayload(payload);
+  const imageId = extractImageIdFromPayload(payload);
+  if (imageUrl) {
+    handleGenerationComplete(imageUrl, imageId);
+  }
 }
 
 function extractConnectionIdFromPayload(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const data = payload as Record<string, unknown>;
   const candidates = ["connectionId", "connection_id", "connectionID", "id"];
+  for (const key of candidates) {
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function extractImageUrlFromPayload(payload: unknown): string | null {
+  if (!payload) return null;
+  if (typeof payload === "string") {
+    const trimmed = payload.trim();
+    if (trimmed.startsWith("http") || trimmed.startsWith("data:")) {
+      return trimmed;
+    }
+    return null;
+  }
+  if (typeof payload !== "object") return null;
+  const data = payload as Record<string, unknown>;
+  const candidates = ["downloadUrl", "download_url", "imageUrl", "image_url", "outputUrl", "url"];
+  for (const key of candidates) {
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function extractImageIdFromPayload(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const data = payload as Record<string, unknown>;
+  const candidates = ["imageId", "image_id", "id", "jobId", "job_id"];
   for (const key of candidates) {
     const value = data[key];
     if (typeof value === "string" && value.trim()) {
