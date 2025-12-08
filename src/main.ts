@@ -39,6 +39,8 @@ const UPLOAD_QUALITY = 0.92;
 const FILE_EXTENSION = "jpg";
 const MAX_CAPTURE_WIDTH = 720;
 const LOADING_DURATION_MS = 30_000;
+const LOADING_TIMEOUT_MS = 60_000;
+const LOADING_TIMEOUT_SEC = LOADING_TIMEOUT_MS / 1000;
 const MIN_LOADING_DURATION_MS = 3_000;
 const LOADING_PROGRESS_INTERVAL_MS = 250;
 const POLLING_INTERVAL_MS = 3_000;
@@ -140,6 +142,12 @@ const alertLogPanel = document.getElementById("alert-log-panel") as HTMLDivEleme
 const alertLogTextarea = document.getElementById("alert-log-text") as HTMLTextAreaElement | null;
 const alertLogCopyBtn = document.getElementById("alert-log-copy") as HTMLButtonElement | null;
 const wsIndicator = document.getElementById("ws-indicator") as HTMLDivElement | null;
+const countdownPopup = document.getElementById("countdown-popup") as HTMLDivElement | null;
+const countdownValue = document.getElementById("countdown-value") as HTMLSpanElement | null;
+
+let countdownLastSecond = -1;
+let countdownTimer: number | null = null;
+let countdownActive = false;
 
 function init() {
   if (!root) {
@@ -204,10 +212,14 @@ function showScene(next: Scene) {
   });
 
   if (next === "capture" && prev !== "capture") {
+    setUploading(false);
     void activateCamera();
   }
   if (prev === "capture" && next !== "capture") {
     stopCamera();
+  }
+  if (next !== "loading") {
+    hideCountdownOverlay();
   }
   if (prev === "loading" && next !== "loading") {
     stopLoadingLoop();
@@ -274,8 +286,8 @@ async function activateCamera(forceRestart = false) {
   } catch (error) {
     console.error("[camera] failed", error);
     state.stream = null;
-    state.isCameraReady = false;
-    setCaptureStatus("카메라 접근에 실패했어요. 권한을 확인해주세요.", "error");
+    state.isCameraReady = true;
+    setCaptureStatus("카메라 접근에 실패했어요. 샘플 이미지로 진행합니다.", "info");
   } finally {
     updateCaptureControls();
   }
@@ -317,6 +329,8 @@ async function handleCapture() {
   const canUseCamera = Boolean(videoEl && canvasEl && state.stream);
   try {
     animateFlash();
+    showCountdownOverlay();
+    state.loadingStart = performance.now();
     const blob = canUseCamera && videoEl && canvasEl ? await captureFrame(videoEl, canvasEl) : await fetchMockCaptureBlob();
     const connectionId = getActiveConnectionId();
     console.log("[connectionId]", connectionId);
@@ -364,6 +378,7 @@ async function handleCapture() {
       window.setTimeout(() => beginLoadingPhase(DEMO_JOB_ID), 400);
       return;
     }
+    hideCountdownOverlay();
     const message =
       error instanceof Error ? error.message : "알 수 없는 오류가 발생했어요. 다시 시도해주세요.";
     const errorDetail =
@@ -394,6 +409,7 @@ function beginLoadingPhase(jobId: string | null) {
   resetResultScene();
   resetLoadingView();
   showScene("loading");
+  // showCountdownOverlay();
   startLoadingProgressTimer();
   if (DEMO_MODE) {
     setLoadingStatusMessage("데모 모드: 샘플 펫을 준비 중이에요.");
@@ -410,7 +426,7 @@ function beginLoadingPhase(jobId: string | null) {
 
 function resetLoadingView() {
   state.loadingProgress = 0;
-  state.loadingStart = performance.now();
+  state.loadingStart = state.loadingStart ?? performance.now();
   updateLoadingProgress(0);
   renderLoadingTimer(0);
   setLoadingStatusMessage("서버에서 펫을 준비 중이에요.");
@@ -450,17 +466,22 @@ function updateLoadingProgress(forcedValue?: number) {
     loadingProgressText.textContent = `펫 생성 진행 중… ${progress.toFixed(0)}%`;
   }
   if (state.loadingStart !== null) {
-    renderLoadingTimer(performance.now() - state.loadingStart);
+    const elapsed = performance.now() - state.loadingStart;
+    renderLoadingTimer(elapsed);
+    if (elapsed >= LOADING_TIMEOUT_MS && state.currentScene === "loading") {
+      handleLoadingTimeout();
+      return;
+    }
   }
 }
 
 function renderLoadingTimer(elapsedMs: number) {
   if (!loadingTimerText) return;
-  const clamped = Math.max(0, Math.min(elapsedMs, LOADING_DURATION_MS));
-  const totalSeconds = Math.floor(clamped / 1000);
-  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-  const seconds = String(totalSeconds % 60).padStart(2, "0");
-  loadingTimerText.textContent = `${minutes}:${seconds}`;
+  const clamped = Math.max(0, Math.min(elapsedMs, LOADING_TIMEOUT_MS));
+  const seconds = Math.floor(clamped / 1000);
+  const totalSeconds = Math.floor(LOADING_TIMEOUT_SEC);
+  loadingTimerText.textContent = `${seconds}/${totalSeconds}`;
+  updateCountdownOverlay(seconds);
 }
 
 function setLoadingStatusMessage(message: string, isError = false) {
@@ -489,6 +510,16 @@ function handleLoadingRetry() {
   setLoadingStatusMessage("새 촬영을 준비할게요.");
   showScene("capture");
   setCaptureStatus("다시 촬영을 진행해주세요.", "info");
+  hideCountdownOverlay();
+}
+
+function handleLoadingTimeout() {
+  stopLoadingLoop();
+  hideCountdownOverlay();
+  setLoadingStatusMessage("응답이 없어 요청을 취소했어요. 다시 시도해주세요.", true);
+  toggleLoadingRetry(true);
+  setCaptureStatus("응답이 없어 업로드를 취소했어요. 다시 촬영해 주세요.", "error");
+  showScene("capture");
 }
 
 function startStatusPolling(jobId: string) {
@@ -593,6 +624,8 @@ function handleGenerationComplete(imageUrl: string | null, imageId: string | nul
   state.petImageUrl = imageUrl;
   state.petImageId = imageId;
   stopStatusPolling();
+  stopLoadingProgressTimer();
+  hideCountdownOverlay();
   const elapsed = state.loadingStart ? performance.now() - state.loadingStart : 0;
   const waitForDuration = Math.max(0, MIN_LOADING_DURATION_MS - elapsed);
   updateLoadingProgress(Math.max(state.loadingProgress, 80));
@@ -637,6 +670,17 @@ function resetResultScene() {
 }
 
 function handleResultRetry() {
+  resetResultScene();
+  state.jobId = null;
+  state.lastUploadKey = null;
+  state.lastUploadId = null;
+  state.loadingStart = null;
+  stopLoadingLoop();
+  stopCamera();
+  hideCountdownOverlay();
+  state.isCameraReady = false;
+  updateCaptureControls();
+  void activateCamera();
   showScene("capture");
   setCaptureStatus("원하는 모습으로 다시 촬영해보세요.", "info");
 }
@@ -1046,6 +1090,53 @@ function updateWsIndicator(status: "disconnected" | "connecting" | "connected") 
     wsIndicator.classList.add("is-connected");
   } else if (status === "connecting") {
     wsIndicator.classList.add("is-connecting");
+  }
+}
+
+function showCountdownOverlay() {
+  if (!countdownPopup || !countdownValue) return;
+  countdownActive = true;
+  countdownLastSecond = -1;
+  countdownValue.textContent = `1/(최대)${LOADING_TIMEOUT_SEC}초`;
+  startCountdownTimer();
+  countdownPopup.classList.add("is-visible");
+}
+
+function updateCountdownOverlay(elapsedSeconds?: number) {
+  if (!countdownActive || !countdownPopup || !countdownValue) return;
+  const elapsed =
+    typeof elapsedSeconds === "number"
+      ? elapsedSeconds
+      : state.loadingStart
+        ? Math.floor((performance.now() - state.loadingStart) / 1000)
+        : 0;
+  const display = Math.min(LOADING_TIMEOUT_SEC, Math.max(1, elapsed + 1));
+  if (display === countdownLastSecond) return;
+  countdownLastSecond = display;
+  countdownValue.textContent = `${display}/(최대)${LOADING_TIMEOUT_SEC}초`;
+  countdownPopup.classList.add("is-visible");
+}
+
+function hideCountdownOverlay() {
+  countdownActive = false;
+  countdownLastSecond = -1;
+  if (countdownPopup) {
+    countdownPopup.classList.remove("is-visible");
+  }
+  stopCountdownTimer();
+}
+
+function startCountdownTimer() {
+  stopCountdownTimer();
+  countdownTimer = window.setInterval(() => {
+    updateCountdownOverlay();
+  }, 1000);
+}
+
+function stopCountdownTimer() {
+  if (countdownTimer !== null) {
+    window.clearInterval(countdownTimer);
+    countdownTimer = null;
   }
 }
 
