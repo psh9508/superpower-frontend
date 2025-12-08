@@ -16,10 +16,22 @@ const MOCK_CAPTURE_MODE =
   (!mockDisabled && queryParams.get("mode") === "mock") ||
   ["1", "true"].includes(mockParam) ||
   DEV_DEFAULT_MOCK;
+const initialConnectionId =
+  queryParams.get("connectionId") ||
+  queryParams.get("ws") ||
+  (() => {
+    try {
+      return localStorage.getItem("connectionId");
+    } catch {
+      return null;
+    }
+  })() ||
+  null;
+const SOCKET_URL = "wss://auxe3bu4yh.execute-api.ap-northeast-2.amazonaws.com/production/";
 const PRESIGN_ENDPOINT =
   "https://h2utwigwli.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
 const STEP_FUNCTION_ENDPOINT =
-  "https://liggexjgk3.execute-api.ap-northeast-2.amazonaws.com/make-image";
+  "https://h2utwigwli.execute-api.ap-northeast-2.amazonaws.com/Prod/image-send";
 const PET_STATUS_ENDPOINT = "/api/pet-generation"; // TODO: actual API에 맞춰 교체
 const EMOTION_ENDPOINT = "/api/pet-journal"; // TODO: actual API에 맞춰 교체
 const UPLOAD_TYPE = "image/jpeg";
@@ -64,6 +76,9 @@ interface AppState {
   petImageUrl: string | null;
   petImageId: string | null;
   emotionSaving: boolean;
+  connectionId: string | null;
+  socket: WebSocket | null;
+  wsStatus: "disconnected" | "connecting" | "connected";
 }
 
 const state: AppState = {
@@ -82,6 +97,9 @@ const state: AppState = {
   petImageUrl: null,
   petImageId: null,
   emotionSaving: false,
+  connectionId: initialConnectionId,
+  socket: null,
+  wsStatus: "disconnected",
 };
 
 const scenes = new Map<Scene, HTMLElement>();
@@ -118,11 +136,23 @@ const evolveHomeBtn = document.getElementById("btn-evolved-home") as HTMLButtonE
 const evolveProgressBar = document.getElementById("evolve-progress") as HTMLDivElement | null;
 const evolvePercentLabel = document.getElementById("evolve-percent") as HTMLSpanElement | null;
 const evolveStatusLabel = document.getElementById("evolve-status") as HTMLParagraphElement | null;
+const alertLogPanel = document.getElementById("alert-log-panel") as HTMLDivElement | null;
+const alertLogTextarea = document.getElementById("alert-log-text") as HTMLTextAreaElement | null;
+const alertLogCopyBtn = document.getElementById("alert-log-copy") as HTMLButtonElement | null;
+const wsIndicator = document.getElementById("ws-indicator") as HTMLDivElement | null;
 
 function init() {
   if (!root) {
     showBootError("앱의 핵심 영역을 찾지 못했어요. 새로고침 후 다시 시도해주세요.");
     return;
+  }
+
+  if (state.connectionId) {
+    try {
+      localStorage.setItem("connectionId", state.connectionId);
+    } catch {
+      // ignore
+    }
   }
 
   document.querySelectorAll<HTMLElement>("[data-scene]").forEach((el) => {
@@ -143,6 +173,8 @@ function init() {
   evolveHomeBtn?.addEventListener("click", () => {
     showScene("intro");
   });
+  initWebSocket();
+  alertLogCopyBtn?.addEventListener("click", handleAlertLogCopy);
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -152,12 +184,16 @@ function init() {
     }
   });
 
-  window.addEventListener("beforeunload", () => stopCamera());
+  window.addEventListener("beforeunload", () => {
+    stopCamera();
+    closeWebSocket();
+  });
 
   showScene("intro");
   setCaptureStatus("촬영 준비가 완료되면 여기서 안내해드릴게요.");
   updateCaptureControls();
   markAppReady();
+  updateWsIndicator("disconnected");
 }
 
 function showScene(next: Scene) {
@@ -282,6 +318,12 @@ async function handleCapture() {
   try {
     animateFlash();
     const blob = canUseCamera && videoEl && canvasEl ? await captureFrame(videoEl, canvasEl) : await fetchMockCaptureBlob();
+    const connectionId = getActiveConnectionId();
+    if (!connectionId && !DEMO_MODE) {
+      const msg = "WebSocket ID를 아직 받지 못했어요. 잠시 후 다시 시도해주세요.";
+      setCaptureStatus(msg, "error");
+      throw new Error("WebSocket connectionId를 아직 받지 못했습니다.");
+    }
     setUploading(true);
     if (DEMO_MODE) {
       setCaptureStatus("데모 모드: 업로드 없이 펫 생성을 시뮬레이션해요.", "info");
@@ -295,7 +337,7 @@ async function handleCapture() {
 
     setCaptureStatus("사진을 업로드하는 중이에요...", "info", "S3 업로드 준비 중");
 
-    const fileName = buildFileName();
+    const fileName = buildFileName(connectionId);
     const presignedUrl = await fetchPresignedUrl(fileName, UPLOAD_TYPE);
     console.log("[presign]", presignedUrl);
     await uploadToPresignedUrl(presignedUrl, blob, UPLOAD_TYPE);
@@ -303,7 +345,7 @@ async function handleCapture() {
     state.lastUploadKey = location.key;
     setCaptureStatus("이제 펫 생성을 요청하고 있어요…", "info");
 
-    const jobId = await requestGenerationJob([location]);
+    const jobId = await requestGenerationJob(location);
     state.jobId = jobId;
 
     setCaptureStatus(
@@ -328,7 +370,9 @@ async function handleCapture() {
         ? `${error.name}: ${error.message}${error.stack ? `\n${error.stack}` : ""}`
         : String(error);
     setCaptureStatus(message, "error");
-    alert(`촬영/업로드 중 문제가 발생했습니다:\n${message}\n\n[DEBUG]\n${errorDetail}`);
+    const alertText = `촬영/업로드 중 문제가 발생했습니다:\n${message}\n\n[DEBUG]\n${errorDetail}`;
+    logAlertMessage(alertText);
+    alert(alertText);
   } finally {
     setUploading(false);
   }
@@ -702,10 +746,11 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
   });
 }
 
-function buildFileName() {
+function buildFileName(activeConnectionId?: string | null) {
+  const prefix = sanitizeFileName(activeConnectionId || state.connectionId || "emotion-pet");
   const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "");
   const random = Math.random().toString(36).slice(2, 8);
-  return `emotion-pet/${stamp}-${random}.${FILE_EXTENSION}`;
+  return `${prefix}/${stamp}-${random}.${FILE_EXTENSION}`;
 }
 
 async function fetchPresignedUrl(fileName: string, contentType: string): Promise<string> {
@@ -757,9 +802,12 @@ function extractS3Location(presignedUrl: string): S3Location {
   return { bucket, key };
 }
 
-async function requestGenerationJob(images: S3Location[]): Promise<string | null> {
-  if (!images.length) return null;
-  const body = JSON.stringify({ input: images });
+async function requestGenerationJob(image: S3Location): Promise<string | null> {
+  if (!image.bucket || !image.key) return null;
+  const body = JSON.stringify({
+    bucket: image.bucket,
+    key: image.key,
+  });
   const response = await fetch(STEP_FUNCTION_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -812,6 +860,150 @@ function setCaptureStatus(message: string, variant: CaptureStatusVariant = "info
   if (statusMeta) {
     statusMeta.textContent = meta || "";
     statusMeta.style.display = meta ? "inline" : "none";
+  }
+}
+
+function getActiveConnectionId(): string | null {
+  return state.connectionId || null;
+}
+
+function setConnectionId(id: string | null) {
+  if (!id) return;
+  if (state.connectionId === id) return;
+  state.connectionId = id;
+  try {
+    localStorage.setItem("connectionId", id);
+  } catch {
+    // ignore storage failures
+  }
+  console.info("[ws] connectionId set:", id);
+}
+
+function initWebSocket() {
+  if (!SOCKET_URL) return;
+  closeWebSocket();
+  try {
+    const socket = new WebSocket(SOCKET_URL);
+    state.socket = socket;
+    console.log("[ws] connecting to", SOCKET_URL);
+    updateWsIndicator("connecting");
+
+    socket.addEventListener("open", () => {
+      console.log("[ws] connected");
+      updateWsIndicator("connected");
+      try {
+        socket.send(JSON.stringify({ action: "ping" }));
+      } catch (error) {
+        console.warn("[ws] 초기 메시지 전송 실패:", error);
+      }
+    });
+
+    socket.addEventListener("message", (event) => {
+      handleWebSocketMessage(event.data);
+    });
+
+    socket.addEventListener("close", (event) => {
+      console.warn("[ws] closed", {
+        code: event.code,
+        reason: event.reason || "(no reason)",
+        wasClean: event.wasClean,
+      });
+      state.socket = null;
+      updateWsIndicator("disconnected");
+    });
+
+    socket.addEventListener("error", (error) => {
+      console.error("[ws] error:", error);
+      updateWsIndicator("disconnected");
+    });
+  } catch (error) {
+    console.error("[ws] connect failed:", error);
+    updateWsIndicator("disconnected");
+  }
+}
+
+function handleWebSocketMessage(data: unknown) {
+  let payload: unknown = data;
+  if (typeof data === "string") {
+    try {
+      payload = JSON.parse(data);
+    } catch {
+      payload = data;
+    }
+  }
+  const connectionId = extractConnectionIdFromPayload(payload);
+  if (connectionId) {
+    setConnectionId(connectionId);
+  }
+}
+
+function extractConnectionIdFromPayload(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const data = payload as Record<string, unknown>;
+  const candidates = ["connectionId", "connection_id", "connectionID", "id"];
+  for (const key of candidates) {
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function closeWebSocket() {
+  if (state.socket) {
+    try {
+      state.socket.close();
+    } catch {
+      // ignore
+    }
+    state.socket = null;
+  }
+}
+
+function logAlertMessage(message: string) {
+  if (!alertLogTextarea || !alertLogPanel) return;
+  const timestamp = new Date().toISOString().replace("T", " ").replace("Z", "");
+  const entry = `[${timestamp}] ${message}`;
+  alertLogTextarea.value = alertLogTextarea.value
+    ? `${entry}\n\n${alertLogTextarea.value}`
+    : entry;
+  alertLogPanel.classList.add("is-visible");
+  alertLogPanel.hidden = false;
+}
+
+function handleAlertLogCopy() {
+  if (!alertLogTextarea) return;
+  const text = alertLogTextarea.value;
+  if (!text) return;
+
+  const fallbackCopy = () => {
+    alertLogTextarea.select();
+    document.execCommand("copy");
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(fallbackCopy);
+  } else {
+    fallbackCopy();
+  }
+
+  if (alertLogCopyBtn) {
+    alertLogCopyBtn.textContent = "복사됨";
+    window.setTimeout(() => {
+      alertLogCopyBtn.textContent = "전체 복사";
+    }, 1200);
+  }
+}
+
+function updateWsIndicator(status: "disconnected" | "connecting" | "connected") {
+  state.wsStatus = status;
+  if (!wsIndicator) return;
+  wsIndicator.classList.remove("is-connected", "is-connecting");
+  if (status === "connected") {
+    wsIndicator.classList.add("is-connected");
+  } else if (status === "connecting") {
+    wsIndicator.classList.add("is-connecting");
   }
 }
 

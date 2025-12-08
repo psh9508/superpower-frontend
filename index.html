@@ -1023,6 +1023,94 @@
         display: none;
       }
 
+      .alert-log-panel {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        width: min(360px, calc(100% - 32px));
+        padding: 12px;
+        background: rgba(47, 42, 59, 0.94);
+        color: #fff;
+        border-radius: 14px;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+        z-index: 9998;
+        display: none;
+        gap: 8px;
+      }
+
+      .alert-log-panel.is-visible {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .alert-log-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .alert-log-copy {
+        border: none;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        background: #fff;
+        color: #2f2a3b;
+        cursor: pointer;
+      }
+
+      .alert-log-copy:active {
+        transform: translateY(1px);
+      }
+
+      .alert-log-text {
+        width: 100%;
+        min-height: 120px;
+        max-height: 220px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font-size: 12px;
+        line-height: 1.5;
+        resize: vertical;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
+      }
+
+      .alert-log-text:focus {
+        outline: 2px solid rgba(255, 255, 255, 0.35);
+        outline-offset: 2px;
+      }
+
+      .ws-indicator {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: rgba(248, 113, 113, 0.95); /* default red */
+        box-shadow:
+          0 0 0 2px rgba(255, 255, 255, 0.28),
+          0 10px 30px rgba(0, 0, 0, 0.18);
+        z-index: 9997;
+      }
+
+      .ws-indicator.is-connected {
+        background: rgba(52, 211, 153, 0.95);
+      }
+
+      .ws-indicator.is-connecting {
+        background: rgba(250, 204, 21, 0.95);
+      }
+
     </style>
   </head>
   <!-- 감정 타입에 따라 theme-XXXX 클래스만 바꿔주면 됩니다 -->
@@ -1030,6 +1118,20 @@
     <div class="boot-alert" id="boot-alert" role="status" aria-live="assertive">
       <strong>앱을 불러오는 중이에요.</strong>
       화면이 보이지 않으면 새로고침하거나 네트워크 연결을 확인해주세요.
+    </div>
+    <div class="ws-indicator" id="ws-indicator" aria-live="polite"></div>
+    <div class="alert-log-panel" id="alert-log-panel" hidden>
+      <div class="alert-log-header">
+        <span>알림/오류 로그</span>
+        <button class="alert-log-copy" id="alert-log-copy" type="button">전체 복사</button>
+      </div>
+      <textarea
+        class="alert-log-text"
+        id="alert-log-text"
+        readonly
+        aria-label="알림 및 오류 로그"
+        placeholder="여기에 alert 메시지가 표시됩니다."
+      ></textarea>
     </div>
     <div class="app-root">
       <!-- 배경 레이어 -->
