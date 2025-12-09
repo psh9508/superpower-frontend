@@ -168,7 +168,12 @@ function init() {
     }
   });
 
-  startBtn?.addEventListener("click", () => showScene("capture"));
+  startBtn?.addEventListener("click", () => {
+    if (!state.socket || state.wsStatus !== "connected") {
+      initWebSocket();
+    }
+    showScene("capture");
+  });
   backBtn?.addEventListener("click", handleBackToIntro);
   switchBtn?.addEventListener("click", toggleFacingMode);
   shutterBtn?.addEventListener("click", handleCapture);
@@ -355,8 +360,8 @@ async function handleCapture() {
     state.lastUploadKey = location.key;
     setCaptureStatus("이제 펫 생성을 요청하고 있어요…", "info");
 
-    const jobId = await requestGenerationJob(location);
-    state.jobId = jobId;
+    // const jobId = await requestGenerationJob(location);
+    // state.jobId = jobId;
 
     // setCaptureStatus(
     //   jobId
@@ -365,7 +370,7 @@ async function handleCapture() {
     //   jobId ? "success" : "info",
     //   jobId ? `jobId: ${jobId}` : undefined
     // );
-    window.setTimeout(() => beginLoadingPhase(jobId), 800);
+    window.setTimeout(() => beginLoadingPhase(''), 800);
   } catch (error) {
     if (DEMO_MODE) {
       setCaptureStatus("데모 모드: 샘플 데이터로 계속 진행합니다.", "info");
@@ -399,7 +404,7 @@ function setUploading(active: boolean) {
   updateCaptureControls();
 }
 
-function beginLoadingPhase(jobId: string | null) {
+function beginLoadingPhase(/*jobId: string | null*/) {
   resetResultScene();
   resetLoadingView();
   showScene("loading");
@@ -409,11 +414,11 @@ function beginLoadingPhase(jobId: string | null) {
     scheduleDemoCompletion();
     return;
   }
-  if (jobId) {
-    startStatusPolling(jobId);
-  } else {
+  // if (jobId) {
+  //   startStatusPolling(jobId);
+  // } else {
     setLoadingStatusMessage("서버에서 펫을 준비 중이에요.");
-  }
+  // }
 }
 
 function resetLoadingView() {
