@@ -12,6 +12,11 @@ const DEMO_MODE =
 const mockParam = (queryParams.get("mock") || "").toLowerCase();
 const mockDisabled = ["0", "false", "off"].includes(mockParam);
 const DEV_DEFAULT_MOCK = import.meta.env.DEV && !mockDisabled;
+const ALERT_LOG_ENABLED =
+  import.meta.env.DEV ||
+  ["1", "true", "on"].includes(
+    (queryParams.get("debugLog") || queryParams.get("debug") || "").toLowerCase()
+  );
 const MOCK_CAPTURE_MODE =
   (!mockDisabled && queryParams.get("mode") === "mock") ||
   ["1", "true"].includes(mockParam) ||
@@ -151,6 +156,10 @@ function init() {
   if (!root) {
     showBootError("앱의 핵심 영역을 찾지 못했어요. 새로고침 후 다시 시도해주세요.");
     return;
+  }
+
+  if (!ALERT_LOG_ENABLED && alertLogPanel) {
+    alertLogPanel.remove();
   }
 
   if (state.connectionId) {
@@ -387,7 +396,11 @@ async function handleCapture() {
     setCaptureStatus(message, "error");
     const alertText = `촬영/업로드 중 문제가 발생했습니다:\n${message}\n\n[DEBUG]\n${errorDetail}`;
     logAlertMessage(alertText);
-    alert(alertText);
+    if (ALERT_LOG_ENABLED) {
+      alert(alertText);
+    } else {
+      console.error(alertText);
+    }
   } finally {
     setUploading(false);
   }
@@ -1055,6 +1068,7 @@ function closeWebSocket() {
 }
 
 function logAlertMessage(message: string) {
+  if (!ALERT_LOG_ENABLED) return;
   if (!alertLogTextarea || !alertLogPanel) return;
   const timestamp = new Date().toISOString().replace("T", " ").replace("Z", "");
   const entry = `[${timestamp}] ${message}`;
