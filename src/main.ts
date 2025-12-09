@@ -46,6 +46,7 @@ const LOADING_PROGRESS_INTERVAL_MS = 250;
 const DEMO_JOB_ID = "demo-job";
 const DEMO_IMAGE_URL = "/demo-sample.jpg";
 const DEMO_COMPLETION_DELAY_MS = 4_000;
+const WS_RECONNECT_TIMEOUT_MS = 4_000;
 
 interface AppState {
   currentScene: Scene;
@@ -323,6 +324,7 @@ async function handleCapture() {
     state.loadingStart = performance.now();
     const blob = canUseCamera && videoEl && canvasEl ? await captureFrame(videoEl, canvasEl) : await fetchMockCaptureBlob();
     showLoadingPreview(blob);
+    await ensureWebSocketConnected();
     const connectionId = getActiveConnectionId();
     console.log("[connectionId]", connectionId);
     if (!connectionId && !DEMO_MODE) {
@@ -898,6 +900,46 @@ function setConnectionId(id: string | null) {
     // ignore storage failures
   }
   console.info("[ws] connectionId set:", id);
+}
+
+async function ensureWebSocketConnected(): Promise<void> {
+  if (state.socket && state.socket.readyState === WebSocket.OPEN) return;
+
+  initWebSocket();
+  if (!state.socket) throw new Error("WebSocket을 초기화하지 못했습니다.");
+
+  const socket = state.socket;
+  await new Promise<void>((resolve, reject) => {
+    if (socket.readyState === WebSocket.OPEN) {
+      resolve();
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("WebSocket 연결이 지연되고 있어요. 잠시 후 다시 시도해주세요."));
+    }, WS_RECONNECT_TIMEOUT_MS);
+    const handleOpen = () => {
+      cleanup();
+      resolve();
+    };
+    const handleClose = () => {
+      cleanup();
+      reject(new Error("WebSocket이 닫혀 있어요. 다시 시도해주세요."));
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error("WebSocket 오류가 발생했습니다. 다시 시도해주세요."));
+    };
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      socket.removeEventListener("open", handleOpen);
+      socket.removeEventListener("close", handleClose);
+      socket.removeEventListener("error", handleError);
+    };
+    socket.addEventListener("open", handleOpen);
+    socket.addEventListener("close", handleClose);
+    socket.addEventListener("error", handleError);
+  });
 }
 
 function initWebSocket() {
