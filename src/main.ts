@@ -38,7 +38,7 @@ const UPLOAD_TYPE = "image/jpeg";
 const UPLOAD_QUALITY = 0.92;
 const FILE_EXTENSION = "jpg";
 const MAX_CAPTURE_WIDTH = 720;
-const LOADING_DURATION_MS = 30_000;
+const LOADING_DURATION_MS = 60_000;
 const LOADING_TIMEOUT_MS = 60_000;
 const LOADING_TIMEOUT_SEC = LOADING_TIMEOUT_MS / 1000;
 const MIN_LOADING_DURATION_MS = 3_000;
@@ -47,6 +47,8 @@ const DEMO_JOB_ID = "demo-job";
 const DEMO_IMAGE_URL = "/demo-sample.jpg";
 const DEMO_COMPLETION_DELAY_MS = 4_000;
 const WS_RECONNECT_TIMEOUT_MS = 4_000;
+const TIMEOUT_POPUP_VISIBLE_MS = 2600;
+const TIMEOUT_POPUP_FADE_MS = 800;
 
 interface AppState {
   currentScene: Scene;
@@ -451,7 +453,7 @@ function updateLoadingProgress(forcedValue?: number) {
     state.loadingProgress = forcedValue;
   } else if (state.loadingStart !== null) {
     const elapsed = performance.now() - state.loadingStart;
-    const target = Math.min(99, (elapsed / LOADING_DURATION_MS) * 100);
+    const target = Math.min(100, (elapsed / LOADING_DURATION_MS) * 100);
     state.loadingProgress = Math.max(state.loadingProgress, target);
   }
   const progress = Math.min(100, Math.max(0, state.loadingProgress));
@@ -542,10 +544,43 @@ function handleLoadingRetry() {
   setCaptureStatus("다시 촬영을 진행해주세요.", "info");
 }
 
+function showTimeoutPopup(message: string) {
+  const wrapper = document.createElement("div");
+  wrapper.setAttribute("role", "alert");
+  wrapper.style.position = "fixed";
+  wrapper.style.left = "50%";
+  wrapper.style.top = "50%";
+  wrapper.style.transform = "translate(-50%, -50%)";
+  wrapper.style.padding = "22px 28px";
+  wrapper.style.borderRadius = "22px";
+  wrapper.style.backdropFilter = "blur(8px)";
+  wrapper.style.background = "linear-gradient(135deg, rgba(255,201,214,0.94), rgba(142,128,255,0.94))";
+  wrapper.style.color = "#1b0f26";
+  wrapper.style.boxShadow = "0 18px 48px rgba(0,0,0,0.22)";
+  wrapper.style.fontWeight = "800";
+  wrapper.style.fontSize = "18px";
+  wrapper.style.textAlign = "center";
+  wrapper.style.maxWidth = "420px";
+  wrapper.style.width = "calc(100% - 48px)";
+  wrapper.style.zIndex = "9999";
+  wrapper.style.opacity = "0";
+  wrapper.style.transition = `opacity ${TIMEOUT_POPUP_FADE_MS}ms ease`;
+  wrapper.textContent = message;
+
+  document.body.appendChild(wrapper);
+  requestAnimationFrame(() => {
+    wrapper.style.opacity = "1";
+  });
+
+  window.setTimeout(() => {
+    wrapper.style.opacity = "0";
+    window.setTimeout(() => wrapper.remove(), TIMEOUT_POPUP_FADE_MS);
+  }, TIMEOUT_POPUP_VISIBLE_MS);
+}
+
 function handleLoadingTimeout() {
   stopLoadingLoop();
-  setLoadingStatusMessage("응답이 없어 요청을 취소했어요. 다시 시도해주세요.", true);
-  toggleLoadingRetry(true);
+  showTimeoutPopup("60초 동안 응답이 없어 촬영 화면으로 돌아갈게요.");
   setCaptureStatus("응답이 없어 업로드를 취소했어요. 다시 촬영해 주세요.", "error");
   showScene("capture");
 }
