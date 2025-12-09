@@ -30,8 +30,6 @@ const initialConnectionId =
 const SOCKET_URL = "wss://auxe3bu4yh.execute-api.ap-northeast-2.amazonaws.com/production/";
 const PRESIGN_ENDPOINT =
   "https://h2utwigwli.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
-const STEP_FUNCTION_ENDPOINT =
-  "https://h2utwigwli.execute-api.ap-northeast-2.amazonaws.com/Prod/image-send";
 const PET_STATUS_ENDPOINT = "/api/pet-generation"; // TODO: actual API에 맞춰 교체
 const EMOTION_ENDPOINT = "/api/pet-journal"; // TODO: actual API에 맞춰 교체
 const UPLOAD_TYPE = "image/jpeg";
@@ -144,12 +142,12 @@ const alertLogPanel = document.getElementById("alert-log-panel") as HTMLDivEleme
 const alertLogTextarea = document.getElementById("alert-log-text") as HTMLTextAreaElement | null;
 const alertLogCopyBtn = document.getElementById("alert-log-copy") as HTMLButtonElement | null;
 const wsIndicator = document.getElementById("ws-indicator") as HTMLDivElement | null;
-const countdownPopup = document.getElementById("countdown-popup") as HTMLDivElement | null;
-const countdownValue = document.getElementById("countdown-value") as HTMLSpanElement | null;
+const loadingPreview = document.getElementById("loading-preview") as HTMLDivElement | null;
+const loadingPreviewImg = document.getElementById("loading-preview-image") as HTMLImageElement | null;
+const loadingProgressMeta = document.getElementById("loading-progress-meta") as HTMLDivElement | null;
 
-let countdownLastSecond = -1;
-let countdownTimer: number | null = null;
-let countdownActive = false;
+let loadingPreviewTimer: number | null = null;
+let loadingPreviewUrl: string | null = null;
 
 function init() {
   if (!root) {
@@ -219,9 +217,6 @@ function showScene(next: Scene) {
   }
   if (prev === "capture" && next !== "capture") {
     stopCamera();
-  }
-  if (next !== "loading") {
-    hideCountdownOverlay();
   }
   if (prev === "loading" && next !== "loading") {
     stopLoadingLoop();
@@ -331,9 +326,9 @@ async function handleCapture() {
   const canUseCamera = Boolean(videoEl && canvasEl && state.stream);
   try {
     animateFlash();
-    showCountdownOverlay();
     state.loadingStart = performance.now();
     const blob = canUseCamera && videoEl && canvasEl ? await captureFrame(videoEl, canvasEl) : await fetchMockCaptureBlob();
+    showLoadingPreview(blob);
     const connectionId = getActiveConnectionId();
     console.log("[connectionId]", connectionId);
     if (!connectionId && !DEMO_MODE) {
@@ -365,13 +360,13 @@ async function handleCapture() {
     const jobId = await requestGenerationJob(location);
     state.jobId = jobId;
 
-    setCaptureStatus(
-      jobId
-        ? "사진 업로드 완료! 곧 펫 생성 씬으로 이동할게요."
-        : "사진 업로드 완료! 생성 상태를 기다리고 있어요.",
-      jobId ? "success" : "info",
-      jobId ? `jobId: ${jobId}` : undefined
-    );
+    // setCaptureStatus(
+    //   jobId
+    //     ? "사진 업로드 완료! 곧 펫 생성 씬으로 이동할게요."
+    //     : "사진 업로드 완료! 생성 상태를 기다리고 있어요.",
+    //   jobId ? "success" : "info",
+    //   jobId ? `jobId: ${jobId}` : undefined
+    // );
     window.setTimeout(() => beginLoadingPhase(jobId), 800);
   } catch (error) {
     if (DEMO_MODE) {
@@ -380,7 +375,6 @@ async function handleCapture() {
       window.setTimeout(() => beginLoadingPhase(DEMO_JOB_ID), 400);
       return;
     }
-    hideCountdownOverlay();
     const message =
       error instanceof Error ? error.message : "알 수 없는 오류가 발생했어요. 다시 시도해주세요.";
     const errorDetail =
@@ -411,19 +405,17 @@ function beginLoadingPhase(jobId: string | null) {
   resetResultScene();
   resetLoadingView();
   showScene("loading");
-  // showCountdownOverlay();
   startLoadingProgressTimer();
   if (DEMO_MODE) {
     setLoadingStatusMessage("데모 모드: 샘플 펫을 준비 중이에요.");
     scheduleDemoCompletion();
     return;
   }
-  if (!jobId) {
-    setCaptureStatus("생성 요청 ID를 받지 못했어요. 다시 시도해주세요.", "error");
-    showScene("capture");
-    return;
+  if (jobId) {
+    startStatusPolling(jobId);
+  } else {
+    setLoadingStatusMessage("서버에서 펫을 준비 중이에요.");
   }
-  startStatusPolling(jobId);
 }
 
 function resetLoadingView() {
@@ -433,6 +425,8 @@ function resetLoadingView() {
   renderLoadingTimer(0);
   setLoadingStatusMessage("서버에서 펫을 준비 중이에요.");
   toggleLoadingRetry(false);
+  hideLoadingPreview();
+  setLoadingProgressMetaVisible(true);
 }
 
 function startLoadingProgressTimer() {
@@ -482,8 +476,42 @@ function renderLoadingTimer(elapsedMs: number) {
   const clamped = Math.max(0, Math.min(elapsedMs, LOADING_TIMEOUT_MS));
   const seconds = Math.floor(clamped / 1000);
   const totalSeconds = Math.floor(LOADING_TIMEOUT_SEC);
-  loadingTimerText.textContent = `${seconds}/${totalSeconds}`;
-  updateCountdownOverlay(seconds);
+  loadingTimerText.textContent = `${seconds}/(최대)${totalSeconds}초`;
+}
+
+function setLoadingProgressMetaVisible(visible: boolean) {
+  if (!loadingProgressMeta) return;
+  loadingProgressMeta.classList.toggle("is-hidden", !visible);
+}
+
+function showLoadingPreview(blob: Blob) {
+  if (!loadingPreview || !loadingPreviewImg) return;
+  hideLoadingPreview();
+  loadingPreviewUrl = URL.createObjectURL(blob);
+  loadingPreviewImg.src = loadingPreviewUrl;
+  loadingPreview.hidden = false;
+  setLoadingProgressMetaVisible(false);
+  loadingPreviewTimer = window.setTimeout(() => {
+    setLoadingProgressMetaVisible(true);
+    hideLoadingPreview();
+  }, 3000);
+}
+
+function hideLoadingPreview() {
+  if (loadingPreviewTimer !== null) {
+    window.clearTimeout(loadingPreviewTimer);
+    loadingPreviewTimer = null;
+  }
+  if (loadingPreview) {
+    loadingPreview.hidden = true;
+  }
+  if (loadingPreviewImg) {
+    loadingPreviewImg.src = "";
+  }
+  if (loadingPreviewUrl) {
+    URL.revokeObjectURL(loadingPreviewUrl);
+    loadingPreviewUrl = null;
+  }
 }
 
 function setLoadingStatusMessage(message: string, isError = false) {
@@ -512,44 +540,42 @@ function handleLoadingRetry() {
   setLoadingStatusMessage("새 촬영을 준비할게요.");
   showScene("capture");
   setCaptureStatus("다시 촬영을 진행해주세요.", "info");
-  hideCountdownOverlay();
 }
 
 function handleLoadingTimeout() {
   stopLoadingLoop();
-  hideCountdownOverlay();
   setLoadingStatusMessage("응답이 없어 요청을 취소했어요. 다시 시도해주세요.", true);
   toggleLoadingRetry(true);
   setCaptureStatus("응답이 없어 업로드를 취소했어요. 다시 촬영해 주세요.", "error");
   showScene("capture");
 }
 
-function startStatusPolling(jobId: string) {
-  stopStatusPolling();
-  const abortController = new AbortController();
-  state.pollAbort = abortController;
+// function startStatusPolling(jobId: string) {
+//   stopStatusPolling();
+//   const abortController = new AbortController();
+//   state.pollAbort = abortController;
 
-  const poll = async () => {
-    if (abortController.signal.aborted) return;
-    try {
-      const payload = await fetchGenerationStatus(jobId, abortController.signal);
-      handleGenerationStatus(payload);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "상태를 불러오지 못했어요. 다시 시도해주세요.";
-      setLoadingStatusMessage(message, true);
-      toggleLoadingRetry(true);
-      stopStatusPolling();
-      stopLoadingProgressTimer();
-    } finally {
-      if (!abortController.signal.aborted && state.currentScene === "loading") {
-        state.pollTimer = window.setTimeout(poll, POLLING_INTERVAL_MS);
-      }
-    }
-  };
+//   const poll = async () => {
+//     if (abortController.signal.aborted) return;
+//     try {
+//       const payload = await fetchGenerationStatus(jobId, abortController.signal);
+//       handleGenerationStatus(payload);
+//     } catch (error) {
+//       const message =
+//         error instanceof Error ? error.message : "상태를 불러오지 못했어요. 다시 시도해주세요.";
+//       setLoadingStatusMessage(message, true);
+//       toggleLoadingRetry(true);
+//       stopStatusPolling();
+//       stopLoadingProgressTimer();
+//     } finally {
+//       if (!abortController.signal.aborted && state.currentScene === "loading") {
+//         state.pollTimer = window.setTimeout(poll, POLLING_INTERVAL_MS);
+//       }
+//     }
+//   };
 
-  void poll();
-}
+//   void poll();
+// }
 
 function stopStatusPolling() {
   if (state.pollTimer !== null) {
@@ -562,72 +588,71 @@ function stopStatusPolling() {
   }
 }
 
-function buildStatusUrl(jobId: string): string {
-  if (PET_STATUS_ENDPOINT.includes("{jobId}")) {
-    return PET_STATUS_ENDPOINT.replace("{jobId}", encodeURIComponent(jobId));
-  }
-  const base = PET_STATUS_ENDPOINT.replace(/\/$/, "");
-  return `${base}/${encodeURIComponent(jobId)}/status`;
-}
+// function buildStatusUrl(jobId: string): string {
+//   if (PET_STATUS_ENDPOINT.includes("{jobId}")) {
+//     return PET_STATUS_ENDPOINT.replace("{jobId}", encodeURIComponent(jobId));
+//   }
+//   const base = PET_STATUS_ENDPOINT.replace(/\/$/, "");
+//   return `${base}/${encodeURIComponent(jobId)}/status`;
+// }
 
-async function fetchGenerationStatus(
-  jobId: string,
-  signal?: AbortSignal
-): Promise<GenerationStatusPayload> {
-  if (!jobId) {
-    throw new Error("유효하지 않은 jobId 입니다.");
-  }
-  const endpoint = buildStatusUrl(jobId);
-  const response = await fetch(endpoint, { signal });
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`상태 조회 실패 (HTTP ${response.status}) ${text}`);
-  }
-  const body = await response.json().catch(() => ({}));
-  if (body && typeof body === "object" && "body" in body && typeof body.body === "string") {
-    try {
-      return JSON.parse(body.body);
-    } catch {
-      return body as GenerationStatusPayload;
-    }
-  }
-  return body as GenerationStatusPayload;
-}
+// async function fetchGenerationStatus(
+//   jobId: string,
+//   signal?: AbortSignal
+// ): Promise<GenerationStatusPayload> {
+//   if (!jobId) {
+//     throw new Error("유효하지 않은 jobId 입니다.");
+//   }
+//   const endpoint = buildStatusUrl(jobId);
+//   const response = await fetch(endpoint, { signal });
+//   if (!response.ok) {
+//     const text = await response.text().catch(() => "");
+//     throw new Error(`상태 조회 실패 (HTTP ${response.status}) ${text}`);
+//   }
+//   const body = await response.json().catch(() => ({}));
+//   if (body && typeof body === "object" && "body" in body && typeof body.body === "string") {
+//     try {
+//       return JSON.parse(body.body);
+//     } catch {
+//       return body as GenerationStatusPayload;
+//     }
+//   }
+//   return body as GenerationStatusPayload;
+// }
 
-function handleGenerationStatus(payload: GenerationStatusPayload) {
-  if (!payload) return;
-  const status: GenerationStatus = (payload.status as GenerationStatus) || "pending";
-  const progressValue = typeof payload.progress === "number" ? payload.progress : undefined;
-  if (typeof progressValue === "number") {
-    const normalized = Math.min(95, Math.max(0, progressValue));
-    updateLoadingProgress(Math.max(state.loadingProgress, normalized));
-  }
-  if (status === "failed") {
-    setLoadingStatusMessage(
-      payload.error || payload.message || "펫 생성에 실패했어요. 다시 시도해주세요.",
-      true
-    );
-    toggleLoadingRetry(true);
-    stopStatusPolling();
-    stopLoadingProgressTimer();
-    return;
-  }
-  if (status === "completed") {
-    const imageUrl = payload.imageUrl || payload.image_url || payload.outputUrl || null;
-    const imageId =
-      payload.imageId || payload.image_id || payload.id || payload.jobId || state.jobId || null;
-    handleGenerationComplete(imageUrl, imageId);
-  } else {
-    setLoadingStatusMessage("서버에서 펫을 준비 중이에요.");
-  }
-}
+// function handleGenerationStatus(payload: GenerationStatusPayload) {
+//   if (!payload) return;
+//   const status: GenerationStatus = (payload.status as GenerationStatus) || "pending";
+//   const progressValue = typeof payload.progress === "number" ? payload.progress : undefined;
+//   if (typeof progressValue === "number") {
+//     const normalized = Math.min(95, Math.max(0, progressValue));
+//     updateLoadingProgress(Math.max(state.loadingProgress, normalized));
+//   }
+//   if (status === "failed") {
+//     setLoadingStatusMessage(
+//       payload.error || payload.message || "펫 생성에 실패했어요. 다시 시도해주세요.",
+//       true
+//     );
+//     toggleLoadingRetry(true);
+//     stopStatusPolling();
+//     stopLoadingProgressTimer();
+//     return;
+//   }
+//   if (status === "completed") {
+//     const imageUrl = payload.imageUrl || payload.image_url || payload.outputUrl || null;
+//     const imageId = payload.imageId || payload.image_id || payload.id || null;
+//     handleGenerationComplete(imageUrl, imageId);
+//   } else {
+//     setLoadingStatusMessage("서버에서 펫을 준비 중이에요.");
+//   }
+// }
 
 function handleGenerationComplete(imageUrl: string | null, imageId: string | null) {
   state.petImageUrl = imageUrl;
   state.petImageId = imageId;
   stopStatusPolling();
   stopLoadingProgressTimer();
-  hideCountdownOverlay();
+  hideLoadingPreview();
   const elapsed = state.loadingStart ? performance.now() - state.loadingStart : 0;
   const waitForDuration = Math.max(0, MIN_LOADING_DURATION_MS - elapsed);
   updateLoadingProgress(Math.max(state.loadingProgress, 80));
@@ -675,11 +700,9 @@ function handleResultRetry() {
   resetResultScene();
   state.jobId = null;
   state.lastUploadKey = null;
-  state.lastUploadId = null;
   state.loadingStart = null;
   stopLoadingLoop();
   stopCamera();
-  hideCountdownOverlay();
   state.isCameraReady = false;
   updateCaptureControls();
   void activateCamera();
@@ -852,29 +875,8 @@ function extractS3Location(presignedUrl: string): S3Location {
 
 async function requestGenerationJob(image: S3Location): Promise<string | null> {
   if (!image.bucket || !image.key) return null;
-  const body = JSON.stringify({
-    bucket: image.bucket,
-    key: image.key,
-  });
-  const response = await fetch(STEP_FUNCTION_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`펫 생성 요청 실패 (HTTP ${response.status}) ${text}`);
-  }
-
-  const responseText = await response.text();
-  if (!responseText) return null;
-  try {
-    const payload = JSON.parse(responseText);
-    return extractJobId(payload);
-  } catch (error) {
-    console.warn("[stepfn] 응답을 JSON으로 파싱할 수 없습니다.", error);
-    return null;
-  }
+  console.log("[requestGenerationJob] bypassed (no StepFunction call)", image);
+  return null;
 }
 
 function extractJobId(payload: unknown): string | null {
@@ -1095,53 +1097,6 @@ function updateWsIndicator(status: "disconnected" | "connecting" | "connected") 
   }
 }
 
-function showCountdownOverlay() {
-  if (!countdownPopup || !countdownValue) return;
-  countdownActive = true;
-  countdownLastSecond = -1;
-  countdownValue.textContent = `1/(최대)${LOADING_TIMEOUT_SEC}초`;
-  startCountdownTimer();
-  countdownPopup.classList.add("is-visible");
-}
-
-function updateCountdownOverlay(elapsedSeconds?: number) {
-  if (!countdownActive || !countdownPopup || !countdownValue) return;
-  const elapsed =
-    typeof elapsedSeconds === "number"
-      ? elapsedSeconds
-      : state.loadingStart
-        ? Math.floor((performance.now() - state.loadingStart) / 1000)
-        : 0;
-  const display = Math.min(LOADING_TIMEOUT_SEC, Math.max(1, elapsed + 1));
-  if (display === countdownLastSecond) return;
-  countdownLastSecond = display;
-  countdownValue.textContent = `${display}/(최대)${LOADING_TIMEOUT_SEC}초`;
-  countdownPopup.classList.add("is-visible");
-}
-
-function hideCountdownOverlay() {
-  countdownActive = false;
-  countdownLastSecond = -1;
-  if (countdownPopup) {
-    countdownPopup.classList.remove("is-visible");
-  }
-  stopCountdownTimer();
-}
-
-function startCountdownTimer() {
-  stopCountdownTimer();
-  countdownTimer = window.setInterval(() => {
-    updateCountdownOverlay();
-  }, 1000);
-}
-
-function stopCountdownTimer() {
-  if (countdownTimer !== null) {
-    window.clearInterval(countdownTimer);
-    countdownTimer = null;
-  }
-}
-
 function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9./_+=-]/g, "_");
 }
@@ -1193,7 +1148,7 @@ function startMegaEvolutionSequence() {
     if (progress === 40) {
       evolveStatusLabel.textContent = "SUNNY 프롬프트 생성 중…";
     } else if (progress === 70) {
-      evolveStatusLabel.textContent = "Nano Banana 이미지 생성 요청…";
+      evolveStatusLabel.textContent = "이미지 생성 요청…";
     }
 
     if (progress >= 100) {

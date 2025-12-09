@@ -819,6 +819,22 @@
         color: var(--color-text-main);
       }
 
+      .loading-preview {
+        width: 100%;
+        border-radius: 18px;
+        overflow: hidden;
+        margin-bottom: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .loading-preview img {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        display: block;
+      }
+
       .loading-hints {
         font-size: 13px;
         color: var(--color-text-muted);
@@ -1115,38 +1131,6 @@
         background: rgba(250, 204, 21, 0.95);
       }
 
-      .countdown-popup {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        min-width: 180px;
-        padding: 14px 16px;
-        border-radius: 14px;
-        background: rgba(47, 42, 59, 0.92);
-        color: #fff;
-        text-align: center;
-        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
-        z-index: 9996;
-        display: none;
-      }
-
-      .countdown-popup.is-visible {
-        display: block;
-      }
-
-      .countdown-title {
-        margin: 0 0 6px;
-        font-size: 13px;
-        font-weight: 700;
-      }
-
-      .countdown-value {
-        font-size: 18px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-      }
-
     </style>
   </head>
   <!-- 감정 타입에 따라 theme-XXXX 클래스만 바꿔주면 됩니다 -->
@@ -1156,10 +1140,6 @@
       화면이 보이지 않으면 새로고침하거나 네트워크 연결을 확인해주세요.
     </div>
     <div class="ws-indicator" id="ws-indicator" aria-live="polite"></div>
-    <div class="countdown-popup" id="countdown-popup" role="status" aria-live="polite">
-      <p class="countdown-title">펫 응답 대기 중</p>
-      <div class="countdown-value"><span id="countdown-value">0</span></div>
-    </div>
     <div class="alert-log-panel" id="alert-log-panel" hidden>
       <div class="alert-log-header">
         <span>알림/오류 로그</span>
@@ -1232,7 +1212,7 @@
             </div>
 
             <button class="btn-primary" id="cta-start">펫 만들기 시작하기</button>
-            <p class="caption">Powered by AWS · Nano Banana</p>
+            <p class="caption">Powered by AWS</p>
           </div>
         </section>
 
@@ -1299,11 +1279,15 @@
               <div class="loading-pet-dot"></div>
             </div>
 
+            <div class="loading-preview" id="loading-preview" hidden>
+              <img id="loading-preview-image" alt="촬영한 사진 미리보기" />
+            </div>
+
             <div class="progress-panel">
               <div class="progress-bar">
                 <span class="progress-bar-fill" id="loading-progress-fill"></span>
               </div>
-              <div class="progress-meta">
+              <div class="progress-meta" id="loading-progress-meta">
                 <span id="loading-progress-text">펫 생성 진행 중… 0%</span>
                 <span id="loading-timer-text">00:00</span>
               </div>
