@@ -140,6 +140,12 @@ const alertLogPanel = document.getElementById("alert-log-panel") as HTMLDivEleme
 const alertLogTextarea = document.getElementById("alert-log-text") as HTMLTextAreaElement | null;
 const alertLogCopyBtn = document.getElementById("alert-log-copy") as HTMLButtonElement | null;
 const wsIndicator = document.getElementById("ws-indicator") as HTMLDivElement | null;
+const loadingPreview = document.getElementById("loading-preview") as HTMLDivElement | null;
+const loadingPreviewImg = document.getElementById("loading-preview-image") as HTMLImageElement | null;
+const loadingProgressMeta = document.getElementById("loading-progress-meta") as HTMLDivElement | null;
+
+let loadingPreviewTimer: number | null = null;
+let loadingPreviewUrl: string | null = null;
 
 function init() {
   if (!root) {
@@ -320,6 +326,7 @@ async function handleCapture() {
     animateFlash();
     state.loadingStart = performance.now();
     const blob = canUseCamera && videoEl && canvasEl ? await captureFrame(videoEl, canvasEl) : await fetchMockCaptureBlob();
+    showLoadingPreview(blob);
     const connectionId = getActiveConnectionId();
     console.log("[connectionId]", connectionId);
     if (!connectionId && !DEMO_MODE) {
@@ -416,6 +423,8 @@ function resetLoadingView() {
   renderLoadingTimer(0);
   setLoadingStatusMessage("서버에서 펫을 준비 중이에요.");
   toggleLoadingRetry(false);
+  hideLoadingPreview();
+  setLoadingProgressMetaVisible(true);
 }
 
 function startLoadingProgressTimer() {
@@ -466,6 +475,41 @@ function renderLoadingTimer(elapsedMs: number) {
   const seconds = Math.floor(clamped / 1000);
   const totalSeconds = Math.floor(LOADING_TIMEOUT_SEC);
   loadingTimerText.textContent = `${seconds}/(최대)${totalSeconds}초`;
+}
+
+function setLoadingProgressMetaVisible(visible: boolean) {
+  if (!loadingProgressMeta) return;
+  loadingProgressMeta.classList.toggle("is-hidden", !visible);
+}
+
+function showLoadingPreview(blob: Blob) {
+  if (!loadingPreview || !loadingPreviewImg) return;
+  hideLoadingPreview();
+  loadingPreviewUrl = URL.createObjectURL(blob);
+  loadingPreviewImg.src = loadingPreviewUrl;
+  loadingPreview.hidden = false;
+  setLoadingProgressMetaVisible(false);
+  loadingPreviewTimer = window.setTimeout(() => {
+    setLoadingProgressMetaVisible(true);
+    hideLoadingPreview();
+  }, 3000);
+}
+
+function hideLoadingPreview() {
+  if (loadingPreviewTimer !== null) {
+    window.clearTimeout(loadingPreviewTimer);
+    loadingPreviewTimer = null;
+  }
+  if (loadingPreview) {
+    loadingPreview.hidden = true;
+  }
+  if (loadingPreviewImg) {
+    loadingPreviewImg.src = "";
+  }
+  if (loadingPreviewUrl) {
+    URL.revokeObjectURL(loadingPreviewUrl);
+    loadingPreviewUrl = null;
+  }
 }
 
 function setLoadingStatusMessage(message: string, isError = false) {
@@ -606,6 +650,7 @@ function handleGenerationComplete(imageUrl: string | null, imageId: string | nul
   state.petImageId = imageId;
   stopStatusPolling();
   stopLoadingProgressTimer();
+  hideLoadingPreview();
   const elapsed = state.loadingStart ? performance.now() - state.loadingStart : 0;
   const waitForDuration = Math.max(0, MIN_LOADING_DURATION_MS - elapsed);
   updateLoadingProgress(Math.max(state.loadingProgress, 80));
@@ -902,7 +947,6 @@ function initWebSocket() {
     });
 
     socket.addEventListener("message", (event) => {
-      console.warn("[ws] message received:", event.data);
       handleWebSocketMessage(event.data);
     });
 

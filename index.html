@@ -819,6 +819,22 @@
         color: var(--color-text-main);
       }
 
+      .loading-preview {
+        width: 100%;
+        border-radius: 18px;
+        overflow: hidden;
+        margin-bottom: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .loading-preview img {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        display: block;
+      }
+
       .loading-hints {
         font-size: 13px;
         color: var(--color-text-muted);
@@ -1263,11 +1279,15 @@
               <div class="loading-pet-dot"></div>
             </div>
 
+            <div class="loading-preview" id="loading-preview" hidden>
+              <img id="loading-preview-image" alt="촬영한 사진 미리보기" />
+            </div>
+
             <div class="progress-panel">
               <div class="progress-bar">
                 <span class="progress-bar-fill" id="loading-progress-fill"></span>
               </div>
-              <div class="progress-meta">
+              <div class="progress-meta" id="loading-progress-meta">
                 <span id="loading-progress-text">펫 생성 진행 중… 0%</span>
                 <span id="loading-timer-text">00:00</span>
               </div>
