@@ -1,8 +1,6 @@
 type Scene = "intro" | "capture" | "loading" | "result";
 type FacingMode = "environment" | "user";
 type CaptureStatusVariant = "info" | "success" | "error";
-type GenerationStatus = "pending" | "processing" | "completed" | "failed";
-
 type S3Location = { bucket: string; key: string };
 
 const queryParams = new URLSearchParams(window.location.search);
@@ -35,7 +33,6 @@ const initialConnectionId =
 const SOCKET_URL = "wss://auxe3bu4yh.execute-api.ap-northeast-2.amazonaws.com/production/";
 const PRESIGN_ENDPOINT =
   "https://h2utwigwli.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
-const PET_STATUS_ENDPOINT = "/api/pet-generation"; // TODO: actual API에 맞춰 교체
 const EMOTION_ENDPOINT = "/api/pet-journal"; // TODO: actual API에 맞춰 교체
 const UPLOAD_TYPE = "image/jpeg";
 const UPLOAD_QUALITY = 0.92;
@@ -46,24 +43,9 @@ const LOADING_TIMEOUT_MS = 60_000;
 const LOADING_TIMEOUT_SEC = LOADING_TIMEOUT_MS / 1000;
 const MIN_LOADING_DURATION_MS = 3_000;
 const LOADING_PROGRESS_INTERVAL_MS = 250;
-const POLLING_INTERVAL_MS = 3_000;
 const DEMO_JOB_ID = "demo-job";
 const DEMO_IMAGE_URL = "/demo-sample.jpg";
 const DEMO_COMPLETION_DELAY_MS = 4_000;
-
-interface GenerationStatusPayload {
-  status?: GenerationStatus;
-  progress?: number;
-  imageUrl?: string;
-  image_url?: string;
-  outputUrl?: string;
-  imageId?: string;
-  image_id?: string;
-  id?: string;
-  jobId?: string;
-  error?: string;
-  message?: string;
-}
 
 interface AppState {
   currentScene: Scene;
@@ -417,7 +399,7 @@ function setUploading(active: boolean) {
   updateCaptureControls();
 }
 
-function beginLoadingPhase(/*jobId: string | null*/) {
+function beginLoadingPhase(_jobId?: string | null) {
   resetResultScene();
   resetLoadingView();
   showScene("loading");
@@ -887,33 +869,6 @@ function extractS3Location(presignedUrl: string): S3Location {
   const [bucket] = url.hostname.split(".");
   const key = decodeURIComponent(url.pathname.replace(/^\//, ""));
   return { bucket, key };
-}
-
-async function requestGenerationJob(image: S3Location): Promise<string | null> {
-  if (!image.bucket || !image.key) return null;
-  console.log("[requestGenerationJob] bypassed (no StepFunction call)", image);
-  return null;
-}
-
-function extractJobId(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = payload as Record<string, unknown>;
-  const candidates = ["jobId", "job_id", "requestId", "request_id", "id"];
-  for (const key of candidates) {
-    const value = data[key];
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-  }
-  if (typeof data.body === "string") {
-    try {
-      const nested = JSON.parse(data.body);
-      return extractJobId(nested);
-    } catch {
-      return null;
-    }
-  }
-  return null;
 }
 
 function setCaptureStatus(message: string, variant: CaptureStatusVariant = "info", meta?: string) {
