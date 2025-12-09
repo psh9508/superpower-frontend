@@ -1115,38 +1115,6 @@
         background: rgba(250, 204, 21, 0.95);
       }
 
-      .countdown-popup {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        min-width: 180px;
-        padding: 14px 16px;
-        border-radius: 14px;
-        background: rgba(47, 42, 59, 0.92);
-        color: #fff;
-        text-align: center;
-        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
-        z-index: 9996;
-        display: none;
-      }
-
-      .countdown-popup.is-visible {
-        display: block;
-      }
-
-      .countdown-title {
-        margin: 0 0 6px;
-        font-size: 13px;
-        font-weight: 700;
-      }
-
-      .countdown-value {
-        font-size: 18px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-      }
-
     </style>
   </head>
   <!-- 감정 타입에 따라 theme-XXXX 클래스만 바꿔주면 됩니다 -->
@@ -1156,10 +1124,6 @@
       화면이 보이지 않으면 새로고침하거나 네트워크 연결을 확인해주세요.
     </div>
     <div class="ws-indicator" id="ws-indicator" aria-live="polite"></div>
-    <div class="countdown-popup" id="countdown-popup" role="status" aria-live="polite">
-      <p class="countdown-title">펫 응답 대기 중</p>
-      <div class="countdown-value"><span id="countdown-value">0</span></div>
-    </div>
     <div class="alert-log-panel" id="alert-log-panel" hidden>
       <div class="alert-log-header">
         <span>알림/오류 로그</span>
@@ -1232,7 +1196,7 @@
             </div>
 
             <button class="btn-primary" id="cta-start">펫 만들기 시작하기</button>
-            <p class="caption">Powered by AWS · Nano Banana</p>
+            <p class="caption">Powered by AWS</p>
           </div>
         </section>
 
