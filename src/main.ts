@@ -78,6 +78,7 @@ interface AppState {
   petImageUrl: string | null;
   petImageId: string | null;
   emotionSaving: boolean;
+  lastUploadId: string | null;
   connectionId: string | null;
   socket: WebSocket | null;
   wsStatus: "disconnected" | "connecting" | "connected";
@@ -99,6 +100,7 @@ const state: AppState = {
   petImageUrl: null,
   petImageId: null,
   emotionSaving: false,
+  lastUploadId: null,
   connectionId: initialConnectionId,
   socket: null,
   wsStatus: "disconnected",
