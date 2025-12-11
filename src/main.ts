@@ -321,20 +321,56 @@ async function activateCamera(forceRestart = false, previousFacingMode?: FacingM
     setCaptureStatus("셔터를 눌러주세요!", "success");
   } catch (error) {
     console.error("[camera] failed", error);
-    if (previousStream) {
-      state.stream = previousStream;
-      state.facingMode = fallbackFacingMode;
-      videoEl.srcObject = previousStream;
-      await videoEl.play().catch(() => undefined);
-      state.isCameraReady = true;
-      setCaptureStatus("카메라 전환에 실패했어요. 이전 카메라를 계속 사용할게요.", "info");
-    } else {
+    const reopened = await tryReconnectCamera(videoEl, fallbackFacingMode, previousStream);
+    if (!reopened) {
       state.stream = null;
       state.isCameraReady = false;
       setCaptureStatus("카메라 접근에 실패했어요. 모바일 브라우저나 다른 환경에서 다시 시도해주세요.", "error");
     }
   } finally {
     updateCaptureControls();
+  }
+}
+
+async function tryReconnectCamera(
+  video: HTMLVideoElement,
+  facingMode: FacingMode,
+  previousStream: MediaStream | null
+): Promise<boolean> {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode,
+        width: { ideal: 720 },
+        height: { ideal: 1280 },
+      },
+    });
+    video.srcObject = stream;
+    await video.play().catch(() => undefined);
+    if (state.stream && state.stream !== stream) {
+      state.stream.getTracks().forEach((track) => track.stop());
+    }
+    if (previousStream && previousStream !== stream) {
+      previousStream.getTracks().forEach((track) => track.stop());
+    }
+    state.stream = stream;
+    state.facingMode = facingMode;
+    state.isCameraReady = true;
+    setCaptureStatus("셔터를 눌러주세요!", "success");
+    return true;
+  } catch (reconnectError) {
+    console.error("[camera] reconnect failed", reconnectError);
+    if (previousStream) {
+      state.stream = previousStream;
+      state.facingMode = facingMode;
+      video.srcObject = previousStream;
+      await video.play().catch(() => undefined);
+      state.isCameraReady = true;
+      setCaptureStatus("카메라 전환에 실패했어요. 이전 카메라를 계속 사용할게요.", "info");
+      return true;
+    }
+    return false;
   }
 }
 
