@@ -244,9 +244,10 @@ function handleBackToIntro() {
 }
 
 function toggleFacingMode() {
+  const previousFacingMode = state.facingMode;
   state.facingMode = state.facingMode === "environment" ? "user" : "environment";
   updatePreviewMirror();
-  void activateCamera(true);
+  void activateCamera(true, previousFacingMode);
 }
 
 function hasCameraSupport(): boolean {
@@ -265,7 +266,7 @@ function isMobileDevice(): boolean {
   return /Android|iPhone|iPad|iPod|Windows Phone|Mobi/i.test(navigator.userAgent);
 }
 
-async function activateCamera(forceRestart = false) {
+async function activateCamera(forceRestart = false, previousFacingMode?: FacingMode) {
   if (!videoEl) return;
   updatePreviewMirror();
   if (shouldBlockForNonMobile()) {
@@ -287,10 +288,10 @@ async function activateCamera(forceRestart = false) {
     return;
   }
 
-  if (forceRestart) {
-    stopCamera();
-  }
-  if (state.stream) {
+  const previousStream = state.stream;
+  const fallbackFacingMode = previousFacingMode ?? state.facingMode;
+
+  if (!forceRestart && state.stream) {
     videoEl.srcObject = state.stream;
     await videoEl.play().catch(() => undefined);
     state.isCameraReady = true;
@@ -299,7 +300,7 @@ async function activateCamera(forceRestart = false) {
     return;
   }
 
-  setCaptureStatus("카메라를 준비하는 중입니다...");
+  setCaptureStatus(forceRestart ? "카메라를 전환하는 중입니다..." : "카메라를 준비하는 중입니다...");
   updateCaptureControls();
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -310,16 +311,28 @@ async function activateCamera(forceRestart = false) {
         height: { ideal: 1280 },
       },
     });
-    state.stream = stream;
     videoEl.srcObject = stream;
     await videoEl.play().catch(() => undefined);
+    state.stream = stream;
     state.isCameraReady = true;
+    if (previousStream && previousStream !== stream) {
+      previousStream.getTracks().forEach((track) => track.stop());
+    }
     setCaptureStatus("셔터를 눌러주세요!", "success");
   } catch (error) {
     console.error("[camera] failed", error);
-    state.stream = null;
-    state.isCameraReady = false;
-    setCaptureStatus("카메라 접근에 실패했어요. 모바일 브라우저나 다른 환경에서 다시 시도해주세요.", "error");
+    if (previousStream) {
+      state.stream = previousStream;
+      state.facingMode = fallbackFacingMode;
+      videoEl.srcObject = previousStream;
+      await videoEl.play().catch(() => undefined);
+      state.isCameraReady = true;
+      setCaptureStatus("카메라 전환에 실패했어요. 이전 카메라를 계속 사용할게요.", "info");
+    } else {
+      state.stream = null;
+      state.isCameraReady = false;
+      setCaptureStatus("카메라 접근에 실패했어요. 모바일 브라우저나 다른 환경에서 다시 시도해주세요.", "error");
+    }
   } finally {
     updateCaptureControls();
   }
