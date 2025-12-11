@@ -33,7 +33,6 @@ const initialConnectionId =
 const SOCKET_URL = "wss://8eycp5n6sf.execute-api.ap-northeast-2.amazonaws.com/production/";
 const PRESIGN_ENDPOINT =
   "https://eiotnpeybc.execute-api.ap-northeast-2.amazonaws.com/Prod/get-input-url";
-const EMOTION_ENDPOINT = "/api/pet-journal"; // TODO: actual API에 맞춰 교체
 const UPLOAD_TYPE = "image/jpeg";
 const UPLOAD_QUALITY = 0.92;
 const FILE_EXTENSION = "jpg";
