@@ -760,22 +760,6 @@ async function handleEmotionSave() {
   showDevelopmentPopup();
 }
 
-async function postEmotion(payload: { imageId: string; emotionText: string }) {
-  const body = JSON.stringify({
-    ...payload,
-    createdAt: new Date().toISOString(),
-  });
-  const response = await fetch(EMOTION_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`감정 저장 실패 (HTTP ${response.status}) ${text}`);
-  }
-}
-
 function setEmotionSaving(isSaving: boolean) {
   state.emotionSaving = isSaving;
   if (resultSaveBtn) {
