@@ -918,6 +918,15 @@ function setConnectionId(id: string | null) {
   }
 }
 
+function clearConnectionId() {
+  state.connectionId = null;
+  try {
+    localStorage.removeItem("connectionId");
+  } catch {
+    // ignore
+  }
+}
+
 async function ensureWebSocketConnected(): Promise<string> {
   if (state.socket && state.socket.readyState === WebSocket.OPEN) {
     const existing = getActiveConnectionId();
@@ -994,6 +1003,7 @@ function waitForConnectionId(): Promise<string> {
 function initWebSocket() {
   if (!SOCKET_URL) return;
   closeWebSocket();
+  clearConnectionId();
   try {
     const socket = new WebSocket(SOCKET_URL);
     state.socket = socket;
@@ -1020,12 +1030,14 @@ function initWebSocket() {
         reason: event.reason || "(no reason)",
         wasClean: event.wasClean,
       });
+      clearConnectionId();
       state.socket = null;
       updateWsIndicator("disconnected");
     });
 
     socket.addEventListener("error", (error) => {
       console.error("[ws] error:", error);
+      clearConnectionId();
       updateWsIndicator("disconnected");
     });
   } catch (error) {
