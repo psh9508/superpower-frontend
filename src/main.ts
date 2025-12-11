@@ -133,6 +133,8 @@ const wsIndicator = document.getElementById("ws-indicator") as HTMLDivElement | 
 const loadingPreview = document.getElementById("loading-preview") as HTMLDivElement | null;
 const loadingPreviewImg = document.getElementById("loading-preview-image") as HTMLImageElement | null;
 const loadingProgressMeta = document.getElementById("loading-progress-meta") as HTMLDivElement | null;
+const devModal = document.getElementById("dev-modal") as HTMLDivElement | null;
+const devModalCloseBtn = document.getElementById("dev-modal-close") as HTMLButtonElement | null;
 
 let loadingPreviewTimer: number | null = null;
 let loadingPreviewUrl: string | null = null;
@@ -199,6 +201,10 @@ function init() {
   updateCaptureControls();
   markAppReady();
   updateWsIndicator("disconnected");
+
+  devModalCloseBtn?.addEventListener("click", () => {
+    hideDevelopmentPopup(true);
+  });
 }
 
 function showScene(next: Scene) {
@@ -751,32 +757,7 @@ function clearEmotionState() {
 }
 
 async function handleEmotionSave() {
-  if (state.emotionSaving) return;
-  if (!state.petImageId) {
-    showResultToast("이미지 ID를 찾을 수 없습니다. 다시 생성해주세요.", true);
-    return;
-  }
-  const text = emotionInput?.value.trim() || "";
-  if (!text) {
-    showResultToast("감정을 먼저 입력해주세요.", true);
-    return;
-  }
-  setEmotionSaving(true);
-  try {
-    await postEmotion({
-      imageId: state.petImageId,
-      emotionText: text,
-    });
-    showResultToast("저장 완료! 고마워요 💫");
-    if (emotionInput) emotionInput.value = "";
-    activateStandaloneScene("weekly");
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "저장에 실패했습니다. 잠시 후 다시 시도해주세요.";
-    showResultToast(message, true);
-  } finally {
-    setEmotionSaving(false);
-  }
+  showDevelopmentPopup();
 }
 
 async function postEmotion(payload: { imageId: string; emotionText: string }) {
@@ -1216,6 +1197,28 @@ function showBootError(message: string) {
   document.body.classList.remove("boot-ready");
   if (bootAlert) {
     bootAlert.innerHTML = `<strong>앱 로딩에 실패했어요.</strong><div>${message}</div>`;
+  }
+}
+
+function showDevelopmentPopup() {
+  setEmotionSaving(true);
+  if (!devModal) {
+    showScene("intro");
+    setEmotionSaving(false);
+    return;
+  }
+  devModal.classList.add("is-visible");
+  requestAnimationFrame(() => devModal.classList.add("is-active"));
+}
+
+function hideDevelopmentPopup(goHome: boolean) {
+  if (devModal) {
+    devModal.classList.remove("is-active");
+    window.setTimeout(() => devModal?.classList.remove("is-visible"), TIMEOUT_POPUP_FADE_MS);
+  }
+  setEmotionSaving(false);
+  if (goHome) {
+    showScene("intro");
   }
 }
 

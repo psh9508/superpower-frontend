@@ -205,6 +205,109 @@
         overflow: hidden;
       }
 
+      /* ===== 개발 중 알림 모달 ===== */
+
+      .dev-modal {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 20% 20%, rgba(255, 185, 204, 0.18), transparent 40%),
+          radial-gradient(circle at 80% 30%, rgba(174, 230, 255, 0.18), transparent 40%),
+          radial-gradient(circle at 50% 80%, rgba(255, 233, 243, 0.2), transparent 45%),
+          rgba(19, 13, 35, 0.45);
+        backdrop-filter: blur(12px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 220ms ease;
+        z-index: 10000;
+        padding: 18px;
+      }
+
+      .dev-modal.is-visible {
+        pointer-events: auto;
+      }
+
+      .dev-modal.is-active {
+        opacity: 1;
+      }
+
+      .dev-modal__card {
+        position: relative;
+        width: min(420px, 100%);
+        padding: 26px 24px 22px;
+        border-radius: 28px;
+        background: linear-gradient(140deg, rgba(255, 255, 255, 0.95), rgba(248, 242, 255, 0.94));
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow:
+          0 22px 40px rgba(0, 0, 0, 0.25),
+          inset 0 0 40px rgba(255, 255, 255, 0.55);
+        overflow: hidden;
+      }
+
+      .dev-modal__halo {
+        position: absolute;
+        inset: -40% -20% 40% -20%;
+        background: radial-gradient(circle at 50% 50%, rgba(255, 185, 204, 0.55), transparent 65%),
+          radial-gradient(circle at 20% 30%, rgba(174, 230, 255, 0.4), transparent 60%);
+        filter: blur(18px);
+        opacity: 0.7;
+        animation: devGlow 5s ease-in-out infinite alternate;
+      }
+
+      @keyframes devGlow {
+        0% {
+          transform: translateY(0px) scale(1);
+          opacity: 0.65;
+        }
+        100% {
+          transform: translateY(-6px) scale(1.03);
+          opacity: 1;
+        }
+      }
+
+      .dev-modal__content {
+        position: relative;
+        display: grid;
+        gap: 12px;
+        text-align: center;
+        color: #2f1b33;
+      }
+
+      .dev-modal__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        align-self: center;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: #1b0f26;
+        color: #fff;
+        font-size: 12px;
+        letter-spacing: 0.4px;
+        box-shadow: 0 10px 24px rgba(27, 15, 38, 0.25);
+      }
+
+      .dev-modal__title {
+        margin: 2px 0 0;
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .dev-modal__text {
+        margin: 0;
+        font-size: 14px;
+        color: #4a3a5d;
+        line-height: 1.6;
+      }
+
+      .dev-modal__action {
+        margin-top: 4px;
+        width: 100%;
+      }
+
       /* ===== 배경 레이어 (행성 · 집 · 나무) ===== */
 
       .background-layer {
@@ -1501,6 +1604,23 @@
         <button class="btn-primary" id="btn-evolved-home">홈으로 돌아가기</button>
       </div>
     </section>
+
+    <div class="dev-modal" id="dev-modal" role="dialog" aria-modal="true" aria-live="assertive">
+      <div class="dev-modal__card">
+        <div class="dev-modal__halo" aria-hidden="true"></div>
+        <div class="dev-modal__content">
+          <span class="dev-modal__badge">🚧 개발 중 · WIP</span>
+          <h3 class="dev-modal__title">아직 저장 기능을 다듬는 중이에요</h3>
+          <p class="dev-modal__text">
+            더 멋진 경험을 준비하고 있어요.<br />
+            홈으로 돌아가서 다른 감정도 기록해볼까요?
+          </p>
+          <button class="btn-primary dev-modal__action" id="dev-modal-close" type="button">
+            홈으로 돌아가기
+          </button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>
