@@ -4,9 +4,6 @@ type CaptureStatusVariant = "info" | "success" | "error";
 type S3Location = { bucket: string; key: string };
 
 const queryParams = new URLSearchParams(window.location.search);
-const DEMO_MODE =
-  ["1", "true"].includes((queryParams.get("demo") || "").toLowerCase()) ||
-  queryParams.get("mode") === "demo";
 const mockParam = (queryParams.get("mock") || "").toLowerCase();
 const mockDisabled = ["0", "false", "off"].includes(mockParam);
 const DEV_DEFAULT_MOCK = import.meta.env.DEV && !mockDisabled;
@@ -42,12 +39,12 @@ const LOADING_TIMEOUT_MS = 60_000;
 const LOADING_TIMEOUT_SEC = LOADING_TIMEOUT_MS / 1000;
 const MIN_LOADING_DURATION_MS = 3_000;
 const LOADING_PROGRESS_INTERVAL_MS = 250;
-const DEMO_JOB_ID = "demo-job";
-const DEMO_IMAGE_URL = "/demo-sample.jpg";
-const DEMO_COMPLETION_DELAY_MS = 4_000;
 const WS_RECONNECT_TIMEOUT_MS = 4_000;
+const CONNECTION_ID_TIMEOUT_MS = 5_000;
 const TIMEOUT_POPUP_VISIBLE_MS = 2600;
 const TIMEOUT_POPUP_FADE_MS = 800;
+const MOCK_SAMPLE_IMAGE_URL = "/demo-sample.jpg";
+const MOBILE_ONLY_MESSAGE = "이 서비스는 모바일 브라우저에서만 촬영할 수 있어요. 스마트폰으로 접속해주세요.";
 
 interface AppState {
   currentScene: Scene;
@@ -90,6 +87,8 @@ const state: AppState = {
   socket: null,
   wsStatus: "disconnected",
 };
+
+const connectionIdWaiters: Array<(id: string) => void> = [];
 
 const scenes = new Map<Scene, HTMLElement>();
 const root = document.querySelector<HTMLElement>("[data-app-root]");
@@ -196,7 +195,10 @@ function init() {
   });
 
   showScene("intro");
-  setCaptureStatus("촬영 준비가 완료되면 여기서 안내해드릴게요.");
+  const captureHint = shouldBlockForNonMobile()
+    ? MOBILE_ONLY_MESSAGE
+    : "촬영 준비가 완료되면 여기서 안내해드릴게요.";
+  setCaptureStatus(captureHint);
   updateCaptureControls();
   markAppReady();
   updateWsIndicator("disconnected");
@@ -215,6 +217,13 @@ function showScene(next: Scene) {
 
   if (next === "capture" && prev !== "capture") {
     setUploading(false);
+    if (shouldBlockForNonMobile()) {
+      stopCamera();
+      state.isCameraReady = false;
+      setCaptureStatus(MOBILE_ONLY_MESSAGE, "error");
+      updateCaptureControls();
+      return;
+    }
     void activateCamera();
   }
   if (prev === "capture" && next !== "capture") {
@@ -244,12 +253,36 @@ function hasCameraSupport(): boolean {
   return Boolean(navigator.mediaDevices?.getUserMedia);
 }
 
+function shouldBlockForNonMobile(): boolean {
+  return !isMobileDevice() && !MOCK_CAPTURE_MODE;
+}
+
+function isMobileDevice(): boolean {
+  const uaData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
+  if (uaData && typeof uaData.mobile === "boolean") {
+    return uaData.mobile;
+  }
+  return /Android|iPhone|iPad|iPod|Windows Phone|Mobi/i.test(navigator.userAgent);
+}
+
 async function activateCamera(forceRestart = false) {
   if (!videoEl) return;
   updatePreviewMirror();
-  if (!hasCameraSupport() || MOCK_CAPTURE_MODE) {
-    setCaptureStatus("PC 테스트 모드: 샘플 이미지를 사용해요.", "info");
+  if (shouldBlockForNonMobile()) {
+    setCaptureStatus(MOBILE_ONLY_MESSAGE, "error");
+    state.isCameraReady = false;
+    updateCaptureControls();
+    return;
+  }
+  if (MOCK_CAPTURE_MODE) {
+    setCaptureStatus("모의 캡처 모드: 샘플 이미지를 사용해요.", "info");
     state.isCameraReady = true;
+    updateCaptureControls();
+    return;
+  }
+  if (!hasCameraSupport()) {
+    setCaptureStatus("카메라를 찾지 못했어요. 모바일 브라우저에서 다시 시도해주세요.", "error");
+    state.isCameraReady = false;
     updateCaptureControls();
     return;
   }
@@ -285,8 +318,8 @@ async function activateCamera(forceRestart = false) {
   } catch (error) {
     console.error("[camera] failed", error);
     state.stream = null;
-    state.isCameraReady = true;
-    setCaptureStatus("카메라 접근에 실패했어요. 샘플 이미지로 진행합니다.", "info");
+    state.isCameraReady = false;
+    setCaptureStatus("카메라 접근에 실패했어요. 모바일 브라우저나 다른 환경에서 다시 시도해주세요.", "error");
   } finally {
     updateCaptureControls();
   }
@@ -324,6 +357,10 @@ function updatePreviewMirror() {
 }
 
 async function handleCapture() {
+  if (shouldBlockForNonMobile()) {
+    setCaptureStatus(MOBILE_ONLY_MESSAGE, "error");
+    return;
+  }
   if (state.isUploading || !state.isCameraReady) return;
   const canUseCamera = Boolean(videoEl && canvasEl && state.stream);
   try {
@@ -331,24 +368,9 @@ async function handleCapture() {
     state.loadingStart = performance.now();
     const blob = canUseCamera && videoEl && canvasEl ? await captureFrame(videoEl, canvasEl) : await fetchMockCaptureBlob();
     showLoadingPreview(blob);
-    await ensureWebSocketConnected();
-    const connectionId = getActiveConnectionId();
+    const connectionId = await ensureWebSocketConnected();
     console.log("[connectionId]", connectionId);
-    if (!connectionId && !DEMO_MODE) {
-      const msg = "WebSocket ID를 아직 받지 못했어요. 잠시 후 다시 시도해주세요.";
-      setCaptureStatus(msg, "error");
-      throw new Error("WebSocket connectionId를 아직 받지 못했습니다.");
-    }
     setUploading(true);
-    if (DEMO_MODE) {
-      setCaptureStatus("데모 모드: 업로드 없이 펫 생성을 시뮬레이션해요.", "info");
-      state.jobId = DEMO_JOB_ID;
-      window.setTimeout(() => {
-        setUploading(false);
-        beginLoadingPhase(DEMO_JOB_ID);
-      }, 500);
-      return;
-    }
 
     setCaptureStatus("사진을 업로드하는 중이에요...", "info", "S3 업로드 준비 중");
 
@@ -370,14 +392,8 @@ async function handleCapture() {
     //   jobId ? "success" : "info",
     //   jobId ? `jobId: ${jobId}` : undefined
     // );
-    window.setTimeout(() => beginLoadingPhase(''), 800);
+    window.setTimeout(() => beginLoadingPhase(""), 800);
   } catch (error) {
-    if (DEMO_MODE) {
-      setCaptureStatus("데모 모드: 샘플 데이터로 계속 진행합니다.", "info");
-      state.jobId = DEMO_JOB_ID;
-      window.setTimeout(() => beginLoadingPhase(DEMO_JOB_ID), 400);
-      return;
-    }
     const message =
       error instanceof Error ? error.message : "알 수 없는 오류가 발생했어요. 다시 시도해주세요.";
     const errorDetail =
@@ -413,11 +429,6 @@ function beginLoadingPhase(_jobId?: string | null) {
   resetLoadingView();
   showScene("loading");
   startLoadingProgressTimer();
-  if (DEMO_MODE) {
-    setLoadingStatusMessage("데모 모드: 샘플 펫을 준비 중이에요.");
-    scheduleDemoCompletion();
-    return;
-  }
   // if (jobId) {
   //   startStatusPolling(jobId);
   // } else {
@@ -534,12 +545,6 @@ function toggleLoadingRetry(show: boolean) {
   } else {
     loadingRetryBtn.hidden = true;
   }
-}
-
-function scheduleDemoCompletion() {
-  window.setTimeout(() => {
-    handleGenerationComplete(DEMO_IMAGE_URL, DEMO_JOB_ID);
-  }, DEMO_COMPLETION_DELAY_MS);
 }
 
 function handleLoadingRetry() {
@@ -880,8 +885,15 @@ function setCaptureStatus(message: string, variant: CaptureStatusVariant = "info
     statusText.textContent = message;
   }
   if (statusMeta) {
-    statusMeta.textContent = meta || "";
-    statusMeta.style.display = meta ? "inline" : "none";
+    const metaMessages: string[] = [];
+    if (meta) {
+      metaMessages.push(meta);
+    }
+    if (!isMobileDevice() && !MOCK_CAPTURE_MODE) {
+      metaMessages.push("카메라 접근이 필요한 경우 모바일 브라우저에서 접속해주세요.");
+    }
+    statusMeta.textContent = metaMessages.join(" · ");
+    statusMeta.style.display = metaMessages.length ? "inline" : "none";
   }
 }
 
@@ -899,16 +911,30 @@ function setConnectionId(id: string | null) {
     // ignore storage failures
   }
   console.info("[ws] connectionId set:", id);
+  if (connectionIdWaiters.length) {
+    const waiters = [...connectionIdWaiters];
+    connectionIdWaiters.length = 0;
+    waiters.forEach((resolver) => resolver(id));
+  }
 }
 
-async function ensureWebSocketConnected(): Promise<void> {
-  if (state.socket && state.socket.readyState === WebSocket.OPEN) return;
+async function ensureWebSocketConnected(): Promise<string> {
+  if (state.socket && state.socket.readyState === WebSocket.OPEN) {
+    const existing = getActiveConnectionId();
+    if (existing) return existing;
+  }
 
   initWebSocket();
   if (!state.socket) throw new Error("WebSocket을 초기화하지 못했습니다.");
 
   const socket = state.socket;
-  await new Promise<void>((resolve, reject) => {
+  await waitForSocketOpen(socket);
+  const connectionId = await waitForConnectionId();
+  return connectionId;
+}
+
+function waitForSocketOpen(socket: WebSocket): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
     if (socket.readyState === WebSocket.OPEN) {
       resolve();
       return;
@@ -938,6 +964,30 @@ async function ensureWebSocketConnected(): Promise<void> {
     socket.addEventListener("open", handleOpen);
     socket.addEventListener("close", handleClose);
     socket.addEventListener("error", handleError);
+  });
+}
+
+function waitForConnectionId(): Promise<string> {
+  if (state.connectionId) {
+    return Promise.resolve(state.connectionId);
+  }
+  return new Promise<string>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("WebSocket 세션 ID를 받지 못했습니다. 잠시 후 다시 시도해주세요."));
+    }, CONNECTION_ID_TIMEOUT_MS);
+    const resolver = (id: string) => {
+      cleanup();
+      resolve(id);
+    };
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      const idx = connectionIdWaiters.indexOf(resolver);
+      if (idx >= 0) {
+        connectionIdWaiters.splice(idx, 1);
+      }
+    };
+    connectionIdWaiters.push(resolver);
   });
 }
 
@@ -1115,7 +1165,7 @@ function sanitizeFileName(name: string) {
 }
 
 async function fetchMockCaptureBlob(): Promise<Blob> {
-  const fallbackUrl = DEMO_IMAGE_URL;
+  const fallbackUrl = MOCK_SAMPLE_IMAGE_URL;
   const response = await fetch(fallbackUrl);
   if (!response.ok) {
     throw new Error(`모의 캡처 이미지를 불러오지 못했습니다 (HTTP ${response.status})`);
